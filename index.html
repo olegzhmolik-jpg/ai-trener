@@ -521,10 +521,23 @@ function openDB(){
       const d = e.target.result;
       STORES.forEach(s=>{ if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:"id"}); });
     };
-    req.onsuccess = (e)=>{ db = e.target.result; resolve(db); };
+    req.onsuccess = (e)=>{
+      db = e.target.result;
+      // Pokud appku otevřeš v jiné kartě/aktualizaci, tahle karta se sama pustí,
+      // ať appka nikdy nezůstane "viset" na zamčené databázi.
+      db.onversionchange = ()=>{ db.close(); };
+      resolve(db);
+    };
+    req.onblocked = ()=>{
+      toastSafe("Appka je otevřená ve víc kartách — zavři ostatní a obnov stránku.");
+    };
     req.onerror = (e)=> reject(e);
+    setTimeout(()=>{
+      if(!db) toastSafe("Databáze se dlouho neotevírá — zkus zavřít ostatní karty appky a obnovit stránku.");
+    }, 4000);
   });
 }
+function toastSafe(msg){ try{ toast(msg); }catch(e){ console.warn(msg); } }
 function tx(store, mode="readonly"){ return db.transaction(store, mode).objectStore(store); }
 function dbGetAll(store){ return new Promise((res,rej)=>{ const r = tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
 function dbGet(store,id){ return new Promise((res,rej)=>{ const r = tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
