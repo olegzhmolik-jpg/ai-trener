@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#0f172a" />
+<title>AI Trenér</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#111c33; --card:#16213e; --card2:#1c2a4a;
+    --line:#26365c; --text:#e6ebf5; --muted:#93a0bf; --accent:#22d3ee;
+    --green:#22c55e; --yellow:#eab308; --red:#ef4444; --pink:#f472b6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;}
+  body{padding-bottom:78px;}
+  header.appbar{position:sticky;top:0;z-index:20;background:var(--bg2);
+    border-bottom:1px solid var(--line);padding:14px 16px calc(10px + env(safe-area-inset-top,0px));
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
+    display:flex;align-items:center;justify-content:space-between;}
+  header.appbar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px;}
+  .semafor-badge{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    padding:6px 10px;border-radius:20px;background:var(--card2);}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot.green{background:var(--green);} .dot.yellow{background:var(--yellow);} .dot.red{background:var(--red);} .dot.grey{background:#5b6785;}
+  main{max-width:520px;margin:0 auto;padding:14px;}
+  section.view{display:none;}
+  section.view.active{display:block;animation:fade .15s ease-in;}
+  @keyframes fade{from{opacity:.4}to{opacity:1}}
+  h2.section-title{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+    margin:18px 0 8px;}
+  h2.section-title:first-child{margin-top:0;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:12px;}
+  .card h3{margin:0 0 10px;font-size:15px;}
+  .row{display:flex;gap:8px;align-items:center;}
+  .row.between{justify-content:space-between;}
+  .row.wrap{flex-wrap:wrap;}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;}
+  label:first-child{margin-top:0;}
+  input, select, textarea{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
+    padding:10px 11px;border-radius:10px;font-size:15px;outline:none;}
+  input[type="range"]{padding:0;}
+  textarea{resize:vertical;min-height:44px;}
+  input:focus, select:focus, textarea:focus{border-color:var(--accent);}
+  button{cursor:pointer;border:none;border-radius:10px;padding:11px 14px;font-size:14.5px;
+    font-weight:600;background:var(--card2);color:var(--text);border:1px solid var(--line);}
+  button.primary{background:var(--accent);color:#062028;border:none;}
+  button.danger{background:#3a1522;color:#ffb4bd;border:1px solid #5c2233;}
+  button.ghost{background:transparent;border:1px solid var(--line);}
+  button.small{padding:7px 10px;font-size:13px;}
+  button:active{transform:scale(.98);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .muted{color:var(--muted);}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;
+    background:var(--card2);border:1px solid var(--line);color:var(--muted);}
+  .pill.green{color:#8ff0b0;border-color:#1f5c3a;background:#0e2a1c;}
+  .pill.yellow{color:#ffe08a;border-color:#5c4b1f;background:#2a220e;}
+  .pill.red{color:#ffb4bd;border-color:#5c2233;background:#2a0f16;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  .setrow{display:grid;grid-template-columns:28px 1fr 1fr 1fr 34px;gap:6px;align-items:center;margin-bottom:6px;}
+  .setrow input{padding:8px;text-align:center;}
+  .exblock{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:var(--card2);}
+  .suggest-box{background:#0d2733;border:1px solid #164a5c;color:#a9e6f5;border-radius:10px;
+    padding:9px 11px;font-size:13px;margin-bottom:10px;}
+  .list-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;
+    border-bottom:1px solid var(--line);}
+  .list-item:last-child{border-bottom:none;}
+  nav.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bg2);
+    border-top:1px solid var(--line);display:flex;
+    padding-bottom:env(safe-area-inset-bottom,0px);}
+  nav.tabbar button{flex:1;background:transparent;border:none;border-radius:0;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px 8px;font-size:10.5px;font-weight:600;}
+  nav.tabbar button .ic{font-size:19px;}
+  nav.tabbar button.active{color:var(--accent);}
+  .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#12351f;
+    color:#b8f5cc;border:1px solid #1f5c3a;padding:10px 16px;border-radius:10px;font-size:13.5px;
+    z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:13.5px;}
+  .searchbar{margin-bottom:10px;}
+  .tag{font-size:11px;color:var(--muted);}
+  .flexwrap{display:flex;flex-wrap:wrap;gap:6px;}
+  hr.sep{border:none;border-top:1px solid var(--line);margin:12px 0;}
+  .bignum{font-size:26px;font-weight:700;}
+  .barwrap{height:10px;background:var(--card2);border-radius:6px;overflow:hidden;margin-top:6px;}
+  .bar{height:100%;background:var(--accent);}
+  .close-x{background:transparent;border:none;color:var(--muted);font-size:20px;padding:2px 8px;}
+  .segmented{display:flex;background:var(--card2);border-radius:10px;padding:3px;border:1px solid var(--line);}
+  .segmented button{flex:1;background:transparent;border:none;padding:8px;font-size:12.5px;color:var(--muted);}
+  .segmented button.on{background:var(--accent);color:#062028;}
+  .mapping-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px;}
+  code{background:var(--card2);padding:1px 5px;border-radius:5px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <h1>AI Trenér</h1>
+  <div class="semafor-badge" id="headerSemafor"><span class="dot grey"></span><span>—</span></div>
+</header>
+
+<main>
+
+  <!-- ============ DNES ============ -->
+  <section class="view" id="view-dnes">
+    <h2 class="section-title">Dnešní check-in</h2>
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Jak na tom dnes jsi?</h3><span class="tag" id="dnesDate"></span></div>
+      <label>Spánek (hodiny)</label>
+      <input type="number" step="0.25" id="ci_sleepHours" placeholder="např. 6.5" />
+      <label>Kvalita spánku: <span id="ci_sleepQualityVal">3</span>/5</label>
+      <input type="range" min="1" max="5" value="3" id="ci_sleepQuality" />
+      <div class="grid2">
+        <div><label>Energie: <span id="ci_energyVal">3</span>/5</label>
+        <input type="range" min="1" max="5" value="3" id="ci_energy" /></div>
+        <div><label>Motivace: <span id="ci_motivationVal">3</span>/5</label>
+        <input type="range" min="1" max="5" value="3" id="ci_motivation" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Stres: <span id="ci_stressVal">3</span>/5</label>
+        <input type="range" min="1" max="5" value="3" id="ci_stress" /></div>
+        <div><label>Svalová únava: <span id="ci_fatigueVal">3</span>/5</label>
+        <input type="range" min="1" max="5" value="3" id="ci_fatigue" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Bolest kolena (0–10)</label><input type="number" min="0" max="10" id="ci_kneePain" value="0" /></div>
+        <div><label>Bolest zad (0–10)</label><input type="number" min="0" max="10" id="ci_backPain" value="0" /></div>
+      </div>
+      <label><input type="checkbox" id="ci_illness" style="width:auto;display:inline-block;vertical-align:middle;margin-right:6px;" />Nemoc / horečka / závratě</label>
+      <hr class="sep" />
+      <label>Alkohol včera</label>
+      <input type="text" id="ci_alcoholPrev" placeholder="např. 3 piva, nebo prázdné = žádný" />
+      <label>Marihuana včera</label>
+      <select id="ci_weedPrev"><option value="ne">Ne</option><option value="ano">Ano</option></select>
+      <label>Vaping dnes ráno</label>
+      <select id="ci_vaping"><option value="zadny">Žádný</option><option value="nizky">Nízký</option><option value="stredni">Střední</option><option value="vysoky">Vysoký</option></select>
+      <label><input type="checkbox" id="ci_underInfluenceNow" style="width:auto;display:inline-block;vertical-align:middle;margin-right:6px;" />Jsem teď pod vlivem alkoholu / marihuany</label>
+      <label>Poznámka</label>
+      <textarea id="ci_note" placeholder="cokoliv důležitého..."></textarea>
+      <button class="primary" style="width:100%;margin-top:12px;" onclick="saveCheckin()">Uložit check-in a spočítat semafor</button>
+    </div>
+
+    <div class="card" id="semaforResultCard" style="display:none;">
+      <div class="row between">
+        <h3 style="margin:0" id="semaforTitle">—</h3>
+        <span class="pill" id="semaforPill">—</span>
+      </div>
+      <ul id="semaforReasons" style="margin:8px 0 0;padding-left:18px;font-size:13.5px;color:var(--muted);"></ul>
+    </div>
+
+    <h2 class="section-title">Rychlé odkazy</h2>
+    <div class="card row wrap" style="gap:10px;">
+      <button class="ghost" onclick="switchView('trenink')">💪 Jít na trénink</button>
+      <button class="ghost" onclick="switchView('strava')">🍽️ Zapsat jídlo</button>
+      <button class="ghost" onclick="switchView('navyky')">🚬 Zapsat návyk</button>
+    </div>
+
+    <h2 class="section-title" id="readinessInfoTitle">Co je „readiness“?</h2>
+    <div class="card" style="font-size:13px;color:var(--muted);line-height:1.5;">
+      Readiness = denní připravenost. Vyplníš pár rychlých otázek (spánek, energie, bolest, látky) a appka
+      z toho spočítá semafor: <b style="color:var(--green)">zelená</b> = jeď podle plánu, <b style="color:var(--yellow)">žlutá</b> = ponech váhy,
+      ale uber sérii a nehoň rekord, <b style="color:var(--red)">červená</b> = volno / lehký pohyb, případně řešit s odborníkem.
+      Je to hlavní bezpečnostní brzda systému.
+    </div>
+  </section>
+
+  <!-- ============ TRÉNINK ============ -->
+  <section class="view" id="view-trenink">
+    <div id="treninkHome">
+      <h2 class="section-title">Trénink</h2>
+      <div class="card">
+        <button class="primary" style="width:100%" onclick="startNewWorkout()">+ Nový trénink</button>
+      </div>
+      <h2 class="section-title">Historie</h2>
+      <div class="card" id="workoutHistoryList"><div class="empty">Zatím žádné tréninky.</div></div>
+      <h2 class="section-title">Statistiky</h2>
+      <div class="card" id="statsBox"><div class="empty">Zatím málo dat.</div></div>
+    </div>
+
+    <div id="treninkActive" style="display:none;">
+      <div class="card">
+        <div class="row between">
+          <h3 style="margin:0">Aktivní trénink</h3>
+          <button class="small ghost" onclick="cancelWorkout()">Zrušit</button>
+        </div>
+        <label>Název tréninku</label>
+        <input type="text" id="wo_name" placeholder="např. Full body A" />
+        <div class="grid2">
+          <div><label>Tělesná hmotnost (kg)</label><input type="number" step="0.1" id="wo_bodyweight" /></div>
+          <div><label>Délka (min, doplň na konci)</label><input type="number" id="wo_duration" /></div>
+        </div>
+      </div>
+
+      <div id="exerciseBlocks"></div>
+
+      <div class="card">
+        <label>Přidat cvik</label>
+        <select id="addExerciseSelect"></select>
+        <button class="ghost" style="width:100%;margin-top:8px;" onclick="addExerciseToWorkout()">+ Přidat cvik do tréninku</button>
+      </div>
+
+      <div class="card">
+        <label>Celkové RPE tréninku (1–10)</label>
+        <input type="number" min="1" max="10" id="wo_rpe" />
+        <label>Poznámka k tréninku</label>
+        <textarea id="wo_note"></textarea>
+        <button class="primary" style="width:100%;margin-top:12px;" onclick="finishWorkout()">✅ Uložit trénink</button>
+      </div>
+    </div>
+
+    <div id="workoutDetailView" style="display:none;">
+      <button class="ghost small" onclick="closeWorkoutDetail()">← Zpět</button>
+      <div id="workoutDetailContent"></div>
+    </div>
+  </section>
+
+  <!-- ============ CVIKY ============ -->
+  <section class="view" id="view-cviky">
+    <h2 class="section-title">Knihovna cviků</h2>
+    <div class="card searchbar">
+      <input type="text" id="exerciseSearch" placeholder="Hledat cvik..." oninput="renderExerciseLibrary()" />
+    </div>
+    <div class="card">
+      <button class="ghost" style="width:100%" onclick="openExerciseForm()">+ Přidat vlastní cvik</button>
+    </div>
+    <div id="exerciseLibraryList"></div>
+
+    <div id="exerciseFormCard" class="card" style="display:none;">
+      <div class="row between"><h3 style="margin:0">Cvik</h3><button class="close-x" onclick="closeExerciseForm()">✕</button></div>
+      <input type="hidden" id="ex_id" />
+      <label>Název</label><input type="text" id="ex_name" />
+      <label>Pohybový vzor</label>
+      <select id="ex_pattern">
+        <option>horizontální tlak</option><option>vertikální tlak</option>
+        <option>horizontální tah</option><option>vertikální tah</option>
+        <option>dřep / kolenní dominance</option><option>kyčelní dominance / hip hinge</option>
+        <option>izolace</option><option>jiné</option>
+      </select>
+      <div class="grid2">
+        <div><label>Primární sval</label><input type="text" id="ex_primary" /></div>
+        <div><label>Sekundární sval</label><input type="text" id="ex_secondary" /></div>
+      </div>
+      <label>Vybavení</label><input type="text" id="ex_equipment" />
+      <div class="grid3">
+        <div><label>Rep min</label><input type="number" id="ex_repMin" value="8" /></div>
+        <div><label>Rep max</label><input type="number" id="ex_repMax" value="10" /></div>
+        <div><label>Krok přidání (kg)</label><input type="number" step="0.25" id="ex_step" value="2.5" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Cílové RIR min</label><input type="number" id="ex_rirMin" value="1" /></div>
+        <div><label>Cílové RIR max</label><input type="number" id="ex_rirMax" value="3" /></div>
+      </div>
+      <label>Pauza (s)</label><input type="number" id="ex_rest" value="150" />
+      <label>Náhrady (odděl čárkou)</label><input type="text" id="ex_alts" />
+      <label>Rizikové signály</label><input type="text" id="ex_risks" placeholder="např. ostrá bolest ramene" />
+      <label><input type="checkbox" id="ex_favorite" style="width:auto;display:inline-block;margin-right:6px;" />Oblíbený cvik</label>
+      <div class="row" style="margin-top:12px;gap:8px;">
+        <button class="primary" style="flex:1" onclick="saveExercise()">Uložit</button>
+        <button class="danger" id="ex_deleteBtn" style="display:none;" onclick="deleteExercise()">Smazat</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STRAVA ============ -->
+  <section class="view" id="view-strava">
+    <h2 class="section-title">Dnešní jídlo</h2>
+    <div class="card">
+      <div class="row between"><span class="muted" id="stravaDate"></span>
+        <input type="date" id="stravaDateInput" onchange="onStravaDateChange()" style="width:auto;" /></div>
+      <div id="dailyTotalsBox" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Přidat jídlo</h3>
+      <label>Potravina z databáze</label>
+      <select id="meal_foodSelect"><option value="">— vyber, nebo zadej ručně níže —</option></select>
+      <div class="grid2">
+        <div><label>Gramáž (g)</label><input type="number" id="meal_grams" placeholder="např. 150" /></div>
+        <div><label>Čas</label><input type="time" id="meal_time" /></div>
+      </div>
+      <label>Nebo ruční záznam (pokud nevybíráš z databáze)</label>
+      <input type="text" id="meal_manualName" placeholder="název jídla" />
+      <div class="grid3">
+        <div><label>Kcal</label><input type="number" id="meal_manualKcal" /></div>
+        <div><label>B (g)</label><input type="number" id="meal_manualP" /></div>
+        <div><label>S (g)</label><input type="number" id="meal_manualC" /></div>
+      </div>
+      <label>T (g)</label><input type="number" id="meal_manualF" />
+      <button class="primary" style="width:100%;margin-top:10px;" onclick="addMeal()">+ Přidat jídlo</button>
+    </div>
+
+    <h2 class="section-title">Záznamy dne</h2>
+    <div class="card" id="mealList"><div class="empty">Zatím žádná jídla.</div></div>
+
+    <h2 class="section-title">Cíle maker</h2>
+    <div class="card">
+      <div class="grid2">
+        <div><label>Cíl</label><select id="target_goal"><option>hubnutí</option><option>udržování</option><option>nabírání</option><option>rekompozice</option></select></div>
+        <div><label>Kalorie / den</label><input type="number" id="target_kcal" /></div>
+      </div>
+      <div class="grid3">
+        <div><label>Bílkoviny (g)</label><input type="number" id="target_p" /></div>
+        <div><label>Sacharidy (g)</label><input type="number" id="target_c" /></div>
+        <div><label>Tuky (g)</label><input type="number" id="target_f" /></div>
+      </div>
+      <p class="muted" style="font-size:12px;">Tip: bílkoviny cca 1,6 g/kg tělesné hmotnosti/den bývají dobrý start pro silový trénink.</p>
+      <button class="ghost" style="width:100%;" onclick="saveMacroTargets()">Uložit cíle</button>
+    </div>
+
+    <h2 class="section-title">Databáze potravin</h2>
+    <div class="card">
+      <label>Název</label><input type="text" id="food_name" />
+      <div class="grid2"><div><label>Značka</label><input type="text" id="food_brand" /></div>
+      <div><label>Zdroj</label><select id="food_source"><option value="etiketa">etiketa</option><option value="odhad">odhad</option></select></div></div>
+      <div class="grid2">
+        <div><label>Kcal/100g</label><input type="number" id="food_kcal" /></div>
+        <div><label>Bílkoviny/100g</label><input type="number" id="food_p" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Sacharidy/100g</label><input type="number" id="food_c" /></div>
+        <div><label>Tuky/100g</label><input type="number" id="food_f" /></div>
+      </div>
+      <button class="ghost" style="width:100%;margin-top:8px;" onclick="addFood()">+ Přidat potravinu do databáze</button>
+    </div>
+    <div class="card" id="foodDbList"></div>
+
+    <h2 class="section-title">Tělo &amp; váha</h2>
+    <div class="card">
+      <div class="grid3">
+        <div><label>Váha (kg)</label><input type="number" step="0.1" id="body_weight" /></div>
+        <div><label>Pas (cm)</label><input type="number" step="0.1" id="body_waist" /></div>
+        <div><label>% tuku (odhad)</label><input type="number" step="0.1" id="body_fat" /></div>
+      </div>
+      <button class="ghost" style="width:100%;margin-top:8px;" onclick="addBodyMetric()">+ Zapsat míry</button>
+    </div>
+    <div class="card" id="bodyMetricsList"></div>
+  </section>
+
+  <!-- ============ NÁVYKY ============ -->
+  <section class="view" id="view-navyky">
+    <h2 class="section-title">Zápis návyku</h2>
+    <div class="card">
+      <label>Typ</label>
+      <select id="sub_type">
+        <option value="alkohol">Alkohol</option>
+        <option value="marihuana">Marihuana</option>
+        <option value="vaping">Vaping</option>
+        <option value="cigareta">Cigareta</option>
+      </select>
+      <div class="grid2">
+        <div><label>Množství / intenzita</label><input type="text" id="sub_amount" placeholder="např. 2 piva, 1 šluk" /></div>
+        <div><label>Čas</label><input type="time" id="sub_time" /></div>
+      </div>
+      <label>Chuť / craving (0–10): <span id="sub_cravingVal">0</span></label>
+      <input type="range" min="0" max="10" value="0" id="sub_craving" />
+      <label>Spouštěč</label>
+      <select id="sub_trigger">
+        <option value="stres">stres</option><option value="nuda">nuda</option>
+        <option value="prace">práce</option><option value="vecer">večer</option>
+        <option value="spolecnost">společnost</option><option value="jine">jiné</option>
+      </select>
+      <label>Co jsem od toho očekával</label><input type="text" id="sub_expectation" />
+      <label>Výsledek</label>
+      <select id="sub_outcome"><option value="pomohlo">pomohlo</option><option value="nepomohlo">nepomohlo</option><option value="neutralni">neutrální</option></select>
+      <label><input type="checkbox" id="sub_planned" style="width:auto;display:inline-block;margin-right:6px;" />Bylo to plánované (ne impulzivní)</label>
+      <button class="primary" style="width:100%;margin-top:10px;" onclick="addSubstance()">+ Zapsat</button>
+    </div>
+
+    <h2 class="section-title">Dnešní záznamy</h2>
+    <div class="card" id="substanceTodayList"><div class="empty">Zatím nic dnes.</div></div>
+
+    <h2 class="section-title">Posledních 14 dní</h2>
+    <div class="card" id="substanceTrendBox"></div>
+
+    <div class="card" style="font-size:12.5px;color:var(--muted);">
+      Smyslem není hodnotit, ale zjistit vzorce: kdy chuť vzniká, co jí předchází a jaký má reálný dopad na spánek
+      a trénink následující den. Appka nenahrazuje adiktologa ani lékaře.
+    </div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section class="view" id="view-data">
+    <h2 class="section-title">Import Garmin / Apple Health</h2>
+    <div class="card">
+      <p class="muted" style="font-size:12.5px;">
+        Nahraj CSV export z Garmin Connect nebo Apple Health (spánek, klidový tep, kroky...).
+        Appka se pokusí sloupce rozpoznat automaticky — zkontroluj a případně oprav mapování níže.
+      </p>
+      <input type="file" id="garminFile" accept=".csv" onchange="handleGarminFile(event)" />
+      <div id="garminMappingBox" style="margin-top:10px;"></div>
+    </div>
+    <h2 class="section-title">Poslední Garmin data</h2>
+    <div class="card" id="garminDataList"><div class="empty">Zatím nic naimportováno.</div></div>
+
+    <h2 class="section-title">Záloha dat</h2>
+    <div class="card">
+      <p class="muted" style="font-size:12.5px;">Všechna data žijí jen v tomto telefonu/prohlížeči. Pravidelně si stahuj zálohu, ať o nic nepřijdeš.</p>
+      <button class="ghost" style="width:100%;" onclick="exportBackup()">⬇️ Stáhnout zálohu (JSON)</button>
+      <label style="margin-top:12px;">Obnovit ze zálohy</label>
+      <input type="file" id="restoreFile" accept=".json" onchange="handleRestoreFile(event)" />
+    </div>
+
+    <h2 class="section-title">Nebezpečná zóna</h2>
+    <div class="card">
+      <button class="danger" style="width:100%;" onclick="resetAllData()">🗑️ Smazat všechna data v appce</button>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabbar">
+  <button data-view="dnes" onclick="switchView('dnes')"><span class="ic">🟢</span>Dnes</button>
+  <button data-view="trenink" onclick="switchView('trenink')"><span class="ic">💪</span>Trénink</button>
+  <button data-view="cviky" onclick="switchView('cviky')"><span class="ic">📚</span>Cviky</button>
+  <button data-view="strava" onclick="switchView('strava')"><span class="ic">🍽️</span>Strava</button>
+  <button data-view="navyky" onclick="switchView('navyky')"><span class="ic">🚬</span>Návyky</button>
+  <button data-view="data" onclick="switchView('data')"><span class="ic">⚙️</span>Data</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================================================================
+   AI TRENÉR — jednoduchá lokální PWA (IndexedDB, offline, bez serveru)
+   ====================================================================== */
+
+const DB_NAME = "ai-trener-db";
+const DB_VERSION = 1;
+const STORES = ["exercises","workouts","sets","checkins","bodymetrics","foods","meals","macroTargets","substances","garminDaily"];
+let db;
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains("exercises")) d.createObjectStore("exercises",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("workouts")) d.createObjectStore("workouts",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("sets")) d.createObjectStore("sets",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("checkins")) d.createObjectStore("checkins",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("bodymetrics")) d.createObjectStore("bodymetrics",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("foods")) d.createObjectStore("foods",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("meals")) d.createObjectStore("meals",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("macroTargets")) d.createObjectStore("macroTargets",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("substances")) d.createObjectStore("substances",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("garminDaily")) d.createObjectStore("garminDaily",{keyPath:"id"});
+    };
+    req.onsuccess = (e)=>{ db = e.target.result; resolve(db); };
+    req.onerror = (e)=> reject(e);
+  });
+}
+function tx(store, mode="readonly"){ return db.transaction(store, mode).objectStore(store); }
+function dbGetAll(store){ return new Promise((res,rej)=>{ const r = tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+function dbGet(store,id){ return new Promise((res,rej)=>{ const r = tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=rej; }); }
+function dbPut(store,obj){ return new Promise((res,rej)=>{ const r = tx(store,"readwrite").put(obj); r.onsuccess=()=>res(obj); r.onerror=rej; }); }
+function dbDelete(store,id){ return new Promise((res,rej)=>{ const r = tx(store,"readwrite").delete(id); r.onsuccess=()=>res(); r.onerror=rej; }); }
+function dbClear(store){ return new Promise((res,rej)=>{ const r = tx(store,"readwrite").clear(); r.onsuccess=()=>res(); r.onerror=rej; }); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,9); }
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
+function epley1RM(weight,reps){ if(!weight||!reps) return 0; return Math.round(weight*(1+reps/30)*10)/10; }
+
+/* ---------------- ROUTER ---------------- */
+function switchView(name){
+  document.querySelectorAll("section.view").forEach(s=>s.classList.remove("active"));
+  document.getElementById("view-"+name).classList.add("active");
+  document.querySelectorAll("nav.tabbar button").forEach(b=>b.classList.toggle("active", b.dataset.view===name));
+  if(name==="dnes") renderDnes();
+  if(name==="trenink") renderTreninkHome();
+  if(name==="cviky") renderExerciseLibrary();
+  if(name==="strava") renderStrava();
+  if(name==="navyky") renderNavyky();
+  if(name==="data") renderData();
+}
+
+/* ---------------- SEED EXERCISES ---------------- */
+const DEFAULT_EXERCISES = [
+  {name:"Bench press (osa)", pattern:"horizontální tlak", primary:"prsní svaly", secondary:"triceps, přední rameno", equipment:"osa, lavice, stojan", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:180, alts:"chest press, jednoruční bench, kliky", risks:"ostrá bolest ramene, nestabilita zápěstí, bolest na hrudi", favorite:true},
+  {name:"Dřep s osou (zádový)", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"vzpřimovače", equipment:"osa, stojan", repMin:6,repMax:10, step:2.5, rirMin:2,rirMax:3, rest:180, alts:"leg press, goblet dřep, hack dřep", risks:"nestabilita kolena, ostrá bolest kolena, ztráta rovnováhy", favorite:true},
+  {name:"Mrtvý tah (klasický)", pattern:"kyčelní dominance / hip hinge", primary:"vzpřimovače, hýždě, hamstringy", secondary:"trapézy, předloktí", equipment:"osa", repMin:5,repMax:8, step:2.5, rirMin:2,rirMax:3, rest:210, alts:"RDL, trap bar mrtvý tah, hip thrust", risks:"bolest dolních zad, kulatá záda pod zátěží", favorite:true},
+  {name:"Overhead press (osa)", pattern:"vertikální tlak", primary:"ramena", secondary:"triceps, horní hrudník", equipment:"osa", repMin:6,repMax:10, step:1.25, rirMin:1,rirMax:3, rest:150, alts:"jednoruční OHP, stroj na ramena", risks:"bolest ramene při zvednutí nad hlavu", favorite:true},
+  {name:"Přítah v předklonu (osa)", pattern:"horizontální tah", primary:"záda (široký sval zádový, rhomboidy)", secondary:"biceps, zadní rameno", equipment:"osa", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:150, alts:"přítah T, jednoruční veslování, kabelový přítah", risks:"bolest dolních zad při předklonu", favorite:true},
+  {name:"Shyby", pattern:"vertikální tah", primary:"široký sval zádový", secondary:"biceps", equipment:"hrazda", repMin:4,repMax:10, step:1.25, rirMin:0,rirMax:2, rest:150, alts:"lat pulldown, asistované shyby", risks:"bolest lokte, bolest ramene", favorite:false},
+  {name:"Bulharský dřep", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"stabilizátory", equipment:"činky, lavice", repMin:8,repMax:12, step:1.25, rirMin:1,rirMax:3, rest:120, alts:"výpady, leg press jednonož", risks:"bolest kolena, ztráta rovnováhy", favorite:false},
+  {name:"Leg press", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"", equipment:"stroj", repMin:8,repMax:15, step:5, rirMin:1,rirMax:3, rest:120, alts:"dřep, hack dřep", risks:"bolest kolena při plném rozsahu", favorite:false},
+  {name:"RDL (rumunský mrtvý tah)", pattern:"kyčelní dominance / hip hinge", primary:"hamstringy, hýždě", secondary:"vzpřimovače", equipment:"osa nebo činky", repMin:8,repMax:12, step:2.5, rirMin:1,rirMax:3, rest:120, alts:"good morning, hip thrust", risks:"bolest dolních zad", favorite:false},
+  {name:"Bicepsový zdvih", pattern:"izolace", primary:"biceps", secondary:"", equipment:"činky nebo osa", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"kabelový zdvih", risks:"bolest lokte", favorite:false},
+  {name:"Tricepsový kabelový tlak", pattern:"izolace", primary:"triceps", secondary:"", equipment:"kladka", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"kliky na bradlech, francouzský tlak", risks:"bolest lokte", favorite:false},
+  {name:"Hip thrust", pattern:"kyčelní dominance / hip hinge", primary:"hýždě", secondary:"hamstringy", equipment:"osa, lavice", repMin:8,repMax:12, step:5, rirMin:1,rirMax:3, rest:120, alts:"glute bridge", risks:"", favorite:false},
+];
+
+async function seedExercisesIfEmpty(){
+  const existing = await dbGetAll("exercises");
+  if(existing.length>0) return;
+  for(const ex of DEFAULT_EXERCISES){
+    await dbPut("exercises", {id:uid(), ...ex, custom:false});
+  }
+}
+
+/* ================= DNES / READINESS ================= */
+const rangeIds = ["ci_sleepQuality","ci_energy","ci_motivation","ci_stress","ci_fatigue"];
+function wireRanges(){
+  rangeIds.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener("input", ()=>{ document.getElementById(id+"Val").textContent = el.value; });
+  });
+  const c = document.getElementById("sub_craving");
+  if(c) c.addEventListener("input", ()=>{ document.getElementById("sub_cravingVal").textContent = c.value; });
+}
+
+async function getGarminForDate(dateStr){
+  const all = await dbGetAll("garminDaily");
+  return all.find(g=>g.date===dateStr);
+}
+async function getGarminRestingHRAvg(beforeDate){
+  const all = (await dbGetAll("garminDaily")).filter(g=>g.restingHR && g.date < beforeDate)
+    .sort((a,b)=> a.date < b.date ? 1 : -1).slice(0,7);
+  if(all.length===0) return null;
+  return all.reduce((s,g)=>s+Number(g.restingHR),0)/all.length;
+}
+
+async function computeSemafor(checkin){
+  const reasons = []; let redFlag=false; let yellowCount=0;
+
+  if(checkin.illness){ redFlag=true; reasons.push("Nemoc / horečka / závratě — dnes žádný silový trénink."); }
+  if(checkin.underInfluenceNow){ redFlag=true; reasons.push("Pod vlivem alkoholu/marihuany teď — zákaz těžkého tréninku (bezpečnostní pravidlo)."); }
+  if(Number(checkin.kneePain)>=4){ redFlag=true; reasons.push(`Bolest kolena ${checkin.kneePain}/10 — vynechat zátěž na koleno, zvážit odborníka.`); }
+  else if(Number(checkin.kneePain)>=1){ yellowCount++; reasons.push(`Mírná bolest kolena ${checkin.kneePain}/10 — sledovat, nezvyšovat zátěž na dřepové cviky.`); }
+  if(Number(checkin.backPain)>=4){ redFlag=true; reasons.push(`Bolest zad ${checkin.backPain}/10 — vynechat těžké hip-hinge cviky.`); }
+  else if(Number(checkin.backPain)>=1){ yellowCount++; reasons.push(`Mírná bolest zad ${checkin.backPain}/10 — sledovat trend.`); }
+
+  const sleepH = Number(checkin.sleepHours)||0;
+  if(sleepH>0 && sleepH<5){ yellowCount+=2; reasons.push(`Spánek jen ${sleepH} h — zvaž snížení objemu.`); }
+  else if(sleepH>0 && sleepH<6.5){ yellowCount++; reasons.push(`Spánek ${sleepH} h — pod obvyklým doporučením.`); }
+
+  if(Number(checkin.energy)<=2){ yellowCount++; reasons.push(`Nízká energie (${checkin.energy}/5).`); }
+  if(Number(checkin.stress)>=4){ yellowCount++; reasons.push(`Vysoký stres (${checkin.stress}/5).`); }
+  if(Number(checkin.fatigue)>=4){ yellowCount++; reasons.push(`Vysoká svalová únava (${checkin.fatigue}/5).`); }
+
+  if(checkin.alcoholPrev && checkin.alcoholPrev.trim() && checkin.alcoholPrev.trim().toLowerCase()!=="ne"){
+    yellowCount++; reasons.push(`Alkohol včera (${checkin.alcoholPrev}) — regenerace může být horší.`);
+  }
+  if(checkin.weedPrev==="ano"){ yellowCount++; reasons.push("Marihuana včera — možný horší spánek/regenerace."); }
+  if(checkin.vaping==="vysoky"){ yellowCount++; reasons.push("Vysoký vaping — informativně, sleduj trend."); }
+
+  // Garmin augmentace
+  try{
+    const g = await getGarminForDate(checkin.date);
+    if(g && g.restingHR){
+      const avg = await getGarminRestingHRAvg(checkin.date);
+      if(avg){
+        const delta = Number(g.restingHR) - avg;
+        if(delta>=10){ redFlag=true; reasons.push(`Klidový tep +${delta.toFixed(0)} tepů proti 7dennímu průměru (Garmin) — výrazné zvýšení.`); }
+        else if(delta>=5){ yellowCount++; reasons.push(`Klidový tep +${delta.toFixed(0)} tepů proti průměru (Garmin).`); }
+      }
+    }
+    if(g && g.sleepMin && !checkin.sleepHours){
+      reasons.push(`Spánek dle Garmin: ${(g.sleepMin/60).toFixed(1)} h.`);
+    }
+  }catch(e){ /* garmin data nejsou povinná */ }
+
+  let level = "green";
+  if(redFlag || yellowCount>=4) level = "red";
+  else if(yellowCount>=1) level = "yellow";
+
+  if(reasons.length===0) reasons.push("Žádné varovné signály — jeď podle plánu.");
+
+  const advice = {
+    green: "Normální trénink, možná progrese, standardní počet sérií.",
+    yellow: "Ponech cviky a zátěž, uber jednu pracovní sérii, nezkoušej rekord, drž vyšší RIR.",
+    red: "Volno, lehký pohyb, nebo řešit stav s odborníkem. Žádná těžká zátěž."
+  };
+  reasons.push("Doporučení: " + advice[level]);
+
+  return {level, reasons};
+}
+
+async function renderDnes(){
+  document.getElementById("dnesDate").textContent = new Date().toLocaleDateString("cs-CZ");
+  const today = todayISO();
+  const existing = (await dbGetAll("checkins")).find(c=>c.date===today);
+  if(existing){
+    document.getElementById("ci_sleepHours").value = existing.sleepHours||"";
+    document.getElementById("ci_sleepQuality").value = existing.sleepQuality||3;
+    document.getElementById("ci_sleepQualityVal").textContent = existing.sleepQuality||3;
+    document.getElementById("ci_energy").value = existing.energy||3;
+    document.getElementById("ci_energyVal").textContent = existing.energy||3;
+    document.getElementById("ci_motivation").value = existing.motivation||3;
+    document.getElementById("ci_motivationVal").textContent = existing.motivation||3;
+    document.getElementById("ci_stress").value = existing.stress||3;
+    document.getElementById("ci_stressVal").textContent = existing.stress||3;
+    document.getElementById("ci_fatigue").value = existing.fatigue||3;
+    document.getElementById("ci_fatigueVal").textContent = existing.fatigue||3;
+    document.getElementById("ci_kneePain").value = existing.kneePain||0;
+    document.getElementById("ci_backPain").value = existing.backPain||0;
+    document.getElementById("ci_illness").checked = !!existing.illness;
+    document.getElementById("ci_alcoholPrev").value = existing.alcoholPrev||"";
+    document.getElementById("ci_weedPrev").value = existing.weedPrev||"ne";
+    document.getElementById("ci_vaping").value = existing.vaping||"zadny";
+    document.getElementById("ci_underInfluenceNow").checked = !!existing.underInfluenceNow;
+    document.getElementById("ci_note").value = existing.note||"";
+    const s = await computeSemafor(existing);
+    showSemaforResult(s);
+    updateHeaderSemafor(s.level);
+  } else {
+    document.getElementById("semaforResultCard").style.display="none";
+    updateHeaderSemafor(null);
+  }
+}
+
+function showSemaforResult(s){
+  const card = document.getElementById("semaforResultCard");
+  card.style.display="block";
+  const labels = {green:"Zelená — jeď podle plánu", yellow:"Žlutá — ubrat", red:"Červená — volno / opatrně"};
+  document.getElementById("semaforTitle").textContent = labels[s.level];
+  const pill = document.getElementById("semaforPill");
+  pill.textContent = s.level.toUpperCase();
+  pill.className = "pill " + s.level;
+  const ul = document.getElementById("semaforReasons");
+  ul.innerHTML = s.reasons.map(r=>`<li>${escapeHtml(r)}</li>`).join("");
+}
+function updateHeaderSemafor(level){
+  const badge = document.getElementById("headerSemafor");
+  const dot = badge.querySelector(".dot");
+  const span = badge.querySelector("span:last-child");
+  if(!level){ dot.className="dot grey"; span.textContent="—"; return; }
+  dot.className = "dot " + level;
+  span.textContent = level==="green"?"Zelená":level==="yellow"?"Žlutá":"Červená";
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function saveCheckin(){
+  const today = todayISO();
+  const existing = (await dbGetAll("checkins")).find(c=>c.date===today);
+  const obj = {
+    id: existing? existing.id : uid(),
+    date: today,
+    sleepHours: document.getElementById("ci_sleepHours").value,
+    sleepQuality: document.getElementById("ci_sleepQuality").value,
+    energy: document.getElementById("ci_energy").value,
+    motivation: document.getElementById("ci_motivation").value,
+    stress: document.getElementById("ci_stress").value,
+    fatigue: document.getElementById("ci_fatigue").value,
+    kneePain: document.getElementById("ci_kneePain").value,
+    backPain: document.getElementById("ci_backPain").value,
+    illness: document.getElementById("ci_illness").checked,
+    alcoholPrev: document.getElementById("ci_alcoholPrev").value,
+    weedPrev: document.getElementById("ci_weedPrev").value,
+    vaping: document.getElementById("ci_vaping").value,
+    underInfluenceNow: document.getElementById("ci_underInfluenceNow").checked,
+    note: document.getElementById("ci_note").value,
+  };
+  await dbPut("checkins", obj);
+  const s = await computeSemafor(obj);
+  showSemaforResult(s);
+  updateHeaderSemafor(s.level);
+  toast("Check-in uložen");
+}
+
+/* ================= TRÉNINK ================= */
+let activeWorkout = null; // {id, name, date, bodyweight, exercises:[{exerciseId,name,sets:[...]}]}
+
+async function renderTreninkHome(){
+  document.getElementById("treninkHome").style.display="block";
+  document.getElementById("treninkActive").style.display="none";
+  document.getElementById("workoutDetailView").style.display="none";
+
+  const workouts = (await dbGetAll("workouts")).sort((a,b)=> a.date<b.date?1:-1);
+  const listEl = document.getElementById("workoutHistoryList");
+  if(workouts.length===0){ listEl.innerHTML = '<div class="empty">Zatím žádné tréninky.</div>'; }
+  else{
+    listEl.innerHTML = workouts.slice(0,25).map(w=>`
+      <div class="list-item">
+        <div>
+          <div><b>${escapeHtml(w.name||"Trénink")}</b></div>
+          <div class="tag">${w.date} · ${w.duration?w.duration+" min":""} · RPE ${w.rpe||"—"}</div>
+        </div>
+        <button class="small ghost" onclick="openWorkoutDetail('${w.id}')">Detail</button>
+      </div>`).join("");
+  }
+
+  const sets = await dbGetAll("sets");
+  const statsEl = document.getElementById("statsBox");
+  if(workouts.length===0){ statsEl.innerHTML = '<div class="empty">Zatím málo dat.</div>'; }
+  else{
+    const exList = await dbGetAll("exercises");
+    const byEx = {};
+    sets.forEach(s=>{ if(s.type!=="working") return; (byEx[s.exerciseId] = byEx[s.exerciseId]||[]).push(s); });
+    let rows = "";
+    Object.keys(byEx).forEach(exId=>{
+      const ex = exList.find(e=>e.id===exId);
+      if(!ex) return;
+      const best = byEx[exId].reduce((m,s)=> Math.max(m, epley1RM(Number(s.weight),Number(s.reps))), 0);
+      rows += `<div class="list-item"><div>${escapeHtml(ex.name)}</div><div class="tag">odh. 1RM ~ ${best} kg</div></div>`;
+    });
+    statsEl.innerHTML = `<div class="row between"><span class="muted">Celkem tréninků</span><b>${workouts.length}</b></div>
+      <div class="row between" style="margin-top:6px;"><span class="muted">Celkem sérií</span><b>${sets.length}</b></div>
+      <hr class="sep"/>${rows || '<div class="empty">Zatím žádné pracovní série.</div>'}`;
+  }
+}
+
+async function startNewWorkout(){
+  const exercises = (await dbGetAll("exercises")).sort((a,b)=> (b.favorite?1:0)-(a.favorite?1:0) || a.name.localeCompare(b.name,'cs'));
+  const sel = document.getElementById("addExerciseSelect");
+  sel.innerHTML = exercises.map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
+  activeWorkout = { id:uid(), name:"", date: todayISO(), bodyweight:"", exercises:[] };
+  document.getElementById("wo_name").value="";
+  document.getElementById("wo_bodyweight").value="";
+  document.getElementById("wo_duration").value="";
+  document.getElementById("wo_rpe").value="";
+  document.getElementById("wo_note").value="";
+  document.getElementById("exerciseBlocks").innerHTML="";
+  document.getElementById("treninkHome").style.display="none";
+  document.getElementById("treninkActive").style.display="block";
+}
+function cancelWorkout(){ activeWorkout=null; renderTreninkHome(); document.getElementById("treninkHome").style.display="block"; document.getElementById("treninkActive").style.display="none"; }
+
+async function suggestNext(exercise, lastSets){
+  if(!lastSets || lastSets.length===0){
+    return {text:"První záznam pro tento cvik — zapiš váhu a najdi vhodné RIR v cílovém rozsahu opakování.", weight:""};
+  }
+  const repMax = Number(exercise.repMax), rirMin = Number(exercise.rirMin);
+  const anyPain = lastSets.some(s=> Number(s.pain)>=4);
+  const allTop = lastSets.every(s=> Number(s.reps)>=repMax && Number(s.rir)>=rirMin);
+  const belowRange = lastSets.some(s=> Number(s.reps) < Number(exercise.repMin));
+  const lastWeight = Number(lastSets[0].weight)||0;
+  const perf = lastSets.map(s=>`${s.reps}`).join("/") + ` @ RIR ${lastSets[lastSets.length-1].rir}`;
+  if(anyPain){
+    return {text:`Minule: ${perf}, ale objevila se bolest — nepokračuj v progresi, zvaž náhradu cviku.`, weight:lastWeight};
+  }
+  if(allTop){
+    const nextW = Math.round((lastWeight + Number(exercise.step))*100)/100;
+    return {text:`Minule: ${perf} (celá horní hranice s rezervou) → přidej váhu: ${lastWeight} → ${nextW} kg.`, weight:nextW};
+  }
+  if(belowRange){
+    return {text:`Minule: ${perf} (pod cílovým rozsahem) → zůstaň na ${lastWeight} kg, zaměř se na kvalitu/rezervu.`, weight:lastWeight};
+  }
+  return {text:`Minule: ${perf} → zůstaň na ${lastWeight} kg, ještě nejsou všechny série na horní hranici s rezervou.`, weight:lastWeight};
+}
+
+async function addExerciseToWorkout(){
+  const exId = document.getElementById("addExerciseSelect").value;
+  const exercises = await dbGetAll("exercises");
+  const exercise = exercises.find(e=>e.id===exId);
+  if(!exercise) return;
+
+  const allWorkouts = (await dbGetAll("workouts")).sort((a,b)=> a.date<b.date?1:-1);
+  const allSets = await dbGetAll("sets");
+  let lastSets = [];
+  for(const w of allWorkouts){
+    const s = allSets.filter(s=>s.workoutId===w.id && s.exerciseId===exId && s.type==="working");
+    if(s.length>0){ lastSets = s; break; }
+  }
+  const suggestion = await suggestNext(exercise, lastSets);
+
+  const blockId = uid();
+  const entry = {blockId, exerciseId:exId, name:exercise.name, exercise, sets:[], suggestedWeight: suggestion.weight};
+  activeWorkout.exercises.push(entry);
+  renderExerciseBlock(entry, suggestion);
+}
+
+function renderExerciseBlock(entry, suggestion){
+  const container = document.getElementById("exerciseBlocks");
+  const div = document.createElement("div");
+  div.className = "exblock";
+  div.id = "block-"+entry.blockId;
+  div.innerHTML = `
+    <div class="row between"><h3 style="margin:0">${escapeHtml(entry.name)}</h3>
+      <button class="close-x" onclick="removeBlock('${entry.blockId}')">✕</button></div>
+    <div class="suggest-box">${escapeHtml(suggestion.text)}</div>
+    <div class="tag">Cíl: ${entry.exercise.repMin}–${entry.exercise.repMax} opak., RIR ${entry.exercise.rirMin}–${entry.exercise.rirMax}, pauza ${entry.exercise.rest}s</div>
+    <div id="sets-${entry.blockId}" style="margin-top:10px;"></div>
+    <button class="ghost small" style="width:100%;margin-top:6px;" onclick="addSetRow('${entry.blockId}')">+ Přidat sérii</button>
+  `;
+  container.appendChild(div);
+}
+function removeBlock(blockId){
+  activeWorkout.exercises = activeWorkout.exercises.filter(e=>e.blockId!==blockId);
+  document.getElementById("block-"+blockId).remove();
+}
+function addSetRow(blockId){
+  const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
+  const setId = uid();
+  const setNum = entry.sets.length+1;
+  const prevSet = entry.sets[entry.sets.length-1];
+  const prefill = prevSet && prevSet.weight!=="" ? prevSet.weight : (entry.suggestedWeight || "");
+  entry.sets.push({id:setId, weight:prefill, reps:"", rir:"", pain:0});
+  const wrap = document.getElementById("sets-"+blockId);
+  const row = document.createElement("div");
+  row.className="setrow";
+  row.id = "setrow-"+setId;
+  row.innerHTML = `
+    <div class="tag" style="text-align:center;">${setNum}</div>
+    <input type="number" step="0.5" placeholder="kg" value="${escapeHtml(prefill)}" oninput="updateSet('${blockId}','${setId}','weight',this.value)" />
+    <input type="number" placeholder="opak." oninput="updateSet('${blockId}','${setId}','reps',this.value)" />
+    <input type="number" placeholder="RIR" oninput="updateSet('${blockId}','${setId}','rir',this.value)" />
+    <button class="close-x" onclick="removeSetRow('${blockId}','${setId}')">✕</button>
+  `;
+  wrap.appendChild(row);
+}
+function updateSet(blockId, setId, field, val){
+  const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
+  const s = entry.sets.find(s=>s.id===setId);
+  if(s) s[field]=val;
+}
+function removeSetRow(blockId, setId){
+  const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
+  entry.sets = entry.sets.filter(s=>s.id!==setId);
+  document.getElementById("setrow-"+setId).remove();
+}
+
+async function finishWorkout(){
+  if(!activeWorkout || activeWorkout.exercises.length===0){ toast("Přidej aspoň jeden cvik."); return; }
+  const wo = {
+    id: activeWorkout.id, date: activeWorkout.date,
+    name: document.getElementById("wo_name").value || "Trénink",
+    bodyweight: document.getElementById("wo_bodyweight").value,
+    duration: document.getElementById("wo_duration").value,
+    rpe: document.getElementById("wo_rpe").value,
+    note: document.getElementById("wo_note").value,
+  };
+  await dbPut("workouts", wo);
+  for(const entry of activeWorkout.exercises){
+    let i=1;
+    for(const s of entry.sets){
+      if(s.weight==="" && s.reps==="") continue;
+      await dbPut("sets", {
+        id:s.id, workoutId:wo.id, exerciseId:entry.exerciseId, setNumber:i++,
+        type:"working", weight:s.weight, reps:s.reps, rir:s.rir, pain:s.pain||0
+      });
+    }
+  }
+  activeWorkout = null;
+  toast("Trénink uložen 💪");
+  renderTreninkHome();
+}
+
+async function openWorkoutDetail(workoutId){
+  const wo = await dbGet("workouts", workoutId);
+  const sets = (await dbGetAll("sets")).filter(s=>s.workoutId===workoutId);
+  const exercises = await dbGetAll("exercises");
+  const byEx = {};
+  sets.forEach(s=>{ (byEx[s.exerciseId]=byEx[s.exerciseId]||[]).push(s); });
+  let html = `<div class="card"><h3>${escapeHtml(wo.name)}</h3>
+    <div class="tag">${wo.date} · ${wo.duration||"?"} min · tělesná hmotnost ${wo.bodyweight||"?"} kg · RPE ${wo.rpe||"?"}</div>
+    ${wo.note?`<p style="margin-top:8px;">${escapeHtml(wo.note)}</p>`:""}</div>`;
+  Object.keys(byEx).forEach(exId=>{
+    const ex = exercises.find(e=>e.id===exId);
+    html += `<div class="card"><h3>${ex?escapeHtml(ex.name):"Cvik"}</h3><table><tr><th>#</th><th>kg</th><th>Opak.</th><th>RIR</th></tr>
+      ${byEx[exId].map(s=>`<tr><td>${s.setNumber}</td><td>${s.weight}</td><td>${s.reps}</td><td>${s.rir}</td></tr>`).join("")}
+      </table></div>`;
+  });
+  document.getElementById("workoutDetailContent").innerHTML = html;
+  document.getElementById("treninkHome").style.display="none";
+  document.getElementById("workoutDetailView").style.display="block";
+}
+function closeWorkoutDetail(){ renderTreninkHome(); }
+
+/* ================= CVIKY ================= */
+async function renderExerciseLibrary(){
+  const q = (document.getElementById("exerciseSearch").value||"").toLowerCase();
+  const list = (await dbGetAll("exercises")).filter(e=>e.name.toLowerCase().includes(q))
+    .sort((a,b)=> (b.favorite?1:0)-(a.favorite?1:0) || a.name.localeCompare(b.name,'cs'));
+  const el = document.getElementById("exerciseLibraryList");
+  if(list.length===0){ el.innerHTML='<div class="card empty">Nic nenalezeno.</div>'; return; }
+  el.innerHTML = list.map(e=>`
+    <div class="card">
+      <div class="row between">
+        <div><b>${escapeHtml(e.name)}</b>${e.favorite?' ⭐':''}</div>
+        <button class="small ghost" onclick="openExerciseForm('${e.id}')">Upravit</button>
+      </div>
+      <div class="tag">${escapeHtml(e.pattern||"")} · ${escapeHtml(e.equipment||"")}</div>
+      <div class="flexwrap" style="margin-top:6px;">
+        <span class="pill">${e.repMin}-${e.repMax} opak.</span>
+        <span class="pill">RIR ${e.rirMin}-${e.rirMax}</span>
+        <span class="pill">pauza ${e.rest}s</span>
+      </div>
+    </div>`).join("");
+}
+async function openExerciseForm(id){
+  document.getElementById("exerciseFormCard").style.display="block";
+  document.getElementById("exerciseFormCard").scrollIntoView({behavior:"smooth"});
+  if(id){
+    const ex = await dbGet("exercises", id);
+    document.getElementById("ex_id").value=ex.id;
+    document.getElementById("ex_name").value=ex.name;
+    document.getElementById("ex_pattern").value=ex.pattern;
+    document.getElementById("ex_primary").value=ex.primary||"";
+    document.getElementById("ex_secondary").value=ex.secondary||"";
+    document.getElementById("ex_equipment").value=ex.equipment||"";
+    document.getElementById("ex_repMin").value=ex.repMin;
+    document.getElementById("ex_repMax").value=ex.repMax;
+    document.getElementById("ex_step").value=ex.step;
+    document.getElementById("ex_rirMin").value=ex.rirMin;
+    document.getElementById("ex_rirMax").value=ex.rirMax;
+    document.getElementById("ex_rest").value=ex.rest;
+    document.getElementById("ex_alts").value=ex.alts||"";
+    document.getElementById("ex_risks").value=ex.risks||"";
+    document.getElementById("ex_favorite").checked=!!ex.favorite;
+    document.getElementById("ex_deleteBtn").style.display="inline-block";
+  } else {
+    ["ex_id","ex_name","ex_primary","ex_secondary","ex_equipment","ex_alts","ex_risks"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("ex_repMin").value=8; document.getElementById("ex_repMax").value=10;
+    document.getElementById("ex_step").value=2.5; document.getElementById("ex_rirMin").value=1;
+    document.getElementById("ex_rirMax").value=3; document.getElementById("ex_rest").value=120;
+    document.getElementById("ex_favorite").checked=false;
+    document.getElementById("ex_deleteBtn").style.display="none";
+  }
+}
+function closeExerciseForm(){ document.getElementById("exerciseFormCard").style.display="none"; }
+async function saveExercise(){
+  const id = document.getElementById("ex_id").value || uid();
+  const obj = {
+    id, custom:true,
+    name: document.getElementById("ex_name").value,
+    pattern: document.getElementById("ex_pattern").value,
+    primary: document.getElementById("ex_primary").value,
+    secondary: document.getElementById("ex_secondary").value,
+    equipment: document.getElementById("ex_equipment").value,
+    repMin: Number(document.getElementById("ex_repMin").value),
+    repMax: Number(document.getElementById("ex_repMax").value),
+    step: Number(document.getElementById("ex_step").value),
+    rirMin: Number(document.getElementById("ex_rirMin").value),
+    rirMax: Number(document.getElementById("ex_rirMax").value),
+    rest: Number(document.getElementById("ex_rest").value),
+    alts: document.getElementById("ex_alts").value,
+    risks: document.getElementById("ex_risks").value,
+    favorite: document.getElementById("ex_favorite").checked,
+  };
+  if(!obj.name){ toast("Zadej název cviku"); return; }
+  await dbPut("exercises", obj);
+  closeExerciseForm();
+  renderExerciseLibrary();
+  toast("Cvik uložen");
+}
+async function deleteExercise(){
+  const id = document.getElementById("ex_id").value;
+  if(!id) return;
+  if(!confirm("Smazat tento cvik?")) return;
+  await dbDelete("exercises", id);
+  closeExerciseForm();
+  renderExerciseLibrary();
+}
+
+/* ================= STRAVA ================= */
+let stravaSelectedDate = todayISO();
+async function renderStrava(){
+  document.getElementById("stravaDateInput").value = stravaSelectedDate;
+  document.getElementById("stravaDate").textContent = stravaSelectedDate;
+  const foods = await dbGetAll("foods");
+  document.getElementById("meal_foodSelect").innerHTML = '<option value="">— vyber, nebo zadej ručně níže —</option>' +
+    foods.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}${f.brand?" ("+escapeHtml(f.brand)+")":""}</option>`).join("");
+
+  const targets = (await dbGetAll("macroTargets"))[0];
+  if(targets){
+    document.getElementById("target_goal").value = targets.goal||"udržování";
+    document.getElementById("target_kcal").value = targets.kcal||"";
+    document.getElementById("target_p").value = targets.protein||"";
+    document.getElementById("target_c").value = targets.carbs||"";
+    document.getElementById("target_f").value = targets.fat||"";
+  }
+
+  const meals = (await dbGetAll("meals")).filter(m=>m.date===stravaSelectedDate);
+  const totals = meals.reduce((t,m)=>({kcal:t.kcal+Number(m.kcal||0),p:t.p+Number(m.protein||0),c:t.c+Number(m.carbs||0),f:t.f+Number(m.fat||0)}),{kcal:0,p:0,c:0,f:0});
+  const tgt = targets || {kcal:0,protein:0,carbs:0,fat:0};
+  const pct = tgt.kcal ? Math.min(100, Math.round(totals.kcal/tgt.kcal*100)) : 0;
+  document.getElementById("dailyTotalsBox").innerHTML = `
+    <div class="bignum">${Math.round(totals.kcal)} kcal <span class="muted" style="font-size:14px;">/ ${tgt.kcal||"?"} kcal</span></div>
+    <div class="barwrap"><div class="bar" style="width:${pct}%"></div></div>
+    <div class="row wrap" style="margin-top:8px;gap:6px;">
+      <span class="pill">B ${Math.round(totals.p)}/${tgt.protein||"?"} g</span>
+      <span class="pill">S ${Math.round(totals.c)}/${tgt.carbs||"?"} g</span>
+      <span class="pill">T ${Math.round(totals.f)}/${tgt.fat||"?"} g</span>
+    </div>`;
+
+  const listEl = document.getElementById("mealList");
+  listEl.innerHTML = meals.length===0 ? '<div class="empty">Zatím žádná jídla.</div>' :
+    meals.map(m=>`<div class="list-item"><div><b>${escapeHtml(m.name)}</b><div class="tag">${m.time||""} · ${Math.round(m.kcal)} kcal (B${Math.round(m.protein)}/S${Math.round(m.carbs)}/T${Math.round(m.fat)})</div></div>
+      <button class="close-x" onclick="deleteMeal('${m.id}')">✕</button></div>`).join("");
+
+  const fdb = await dbGetAll("foods");
+  document.getElementById("foodDbList").innerHTML = fdb.length===0 ? '<div class="empty">Databáze potravin je prázdná.</div>' :
+    fdb.map(f=>`<div class="list-item"><div><b>${escapeHtml(f.name)}</b><div class="tag">${f.kcal100} kcal/100g · B${f.protein100}/S${f.carbs100}/T${f.fat100}</div></div>
+      <button class="close-x" onclick="deleteFood('${f.id}')">✕</button></div>`).join("");
+
+  const bm = (await dbGetAll("bodymetrics")).sort((a,b)=> a.date<b.date?1:-1).slice(0,10);
+  document.getElementById("bodyMetricsList").innerHTML = bm.length===0 ? '<div class="empty">Zatím žádné míry.</div>' :
+    bm.map(b=>`<div class="list-item"><div>${b.date}</div><div class="tag">${b.weight||"?"} kg · pas ${b.waist||"?"} cm · tuk ${b.bodyFat||"?"}%</div></div>`).join("");
+}
+function onStravaDateChange(){ stravaSelectedDate = document.getElementById("stravaDateInput").value || todayISO(); renderStrava(); }
+
+async function addMeal(){
+  const foodId = document.getElementById("meal_foodSelect").value;
+  const grams = Number(document.getElementById("meal_grams").value)||0;
+  const time = document.getElementById("meal_time").value || new Date().toTimeString().slice(0,5);
+  let meal;
+  if(foodId){
+    const f = await dbGet("foods", foodId);
+    if(!f || !grams){ toast("Zadej gramáž."); return; }
+    meal = {id:uid(), date:stravaSelectedDate, time, name:f.name, grams,
+      kcal:f.kcal100*grams/100, protein:f.protein100*grams/100, carbs:f.carbs100*grams/100, fat:f.fat100*grams/100};
+  } else {
+    const name = document.getElementById("meal_manualName").value;
+    if(!name){ toast("Zadej název nebo vyber potravinu."); return; }
+    meal = {id:uid(), date:stravaSelectedDate, time, name,
+      kcal:Number(document.getElementById("meal_manualKcal").value)||0,
+      protein:Number(document.getElementById("meal_manualP").value)||0,
+      carbs:Number(document.getElementById("meal_manualC").value)||0,
+      fat:Number(document.getElementById("meal_manualF").value)||0};
+  }
+  await dbPut("meals", meal);
+  ["meal_grams","meal_manualName","meal_manualKcal","meal_manualP","meal_manualC","meal_manualF"].forEach(id=>document.getElementById(id).value="");
+  renderStrava();
+  toast("Jídlo přidáno");
+}
+async function deleteMeal(id){ await dbDelete("meals", id); renderStrava(); }
+
+async function addFood(){
+  const name = document.getElementById("food_name").value;
+  if(!name){ toast("Zadej název potraviny."); return; }
+  await dbPut("foods", {
+    id:uid(), name, brand:document.getElementById("food_brand").value,
+    source:document.getElementById("food_source").value,
+    kcal100:Number(document.getElementById("food_kcal").value)||0,
+    protein100:Number(document.getElementById("food_p").value)||0,
+    carbs100:Number(document.getElementById("food_c").value)||0,
+    fat100:Number(document.getElementById("food_f").value)||0,
+    dateChecked: todayISO()
+  });
+  ["food_name","food_brand","food_kcal","food_p","food_c","food_f"].forEach(id=>document.getElementById(id).value="");
+  renderStrava();
+  toast("Potravina přidána do databáze");
+}
+async function deleteFood(id){ await dbDelete("foods", id); renderStrava(); }
+
+async function saveMacroTargets(){
+  const existing = (await dbGetAll("macroTargets"))[0];
+  await dbPut("macroTargets", {
+    id: existing?existing.id:uid(),
+    goal: document.getElementById("target_goal").value,
+    kcal: Number(document.getElementById("target_kcal").value)||0,
+    protein: Number(document.getElementById("target_p").value)||0,
+    carbs: Number(document.getElementById("target_c").value)||0,
+    fat: Number(document.getElementById("target_f").value)||0,
+  });
+  renderStrava();
+  toast("Cíle uloženy");
+}
+async function addBodyMetric(){
+  const w = document.getElementById("body_weight").value;
+  const waist = document.getElementById("body_waist").value;
+  const fat = document.getElementById("body_fat").value;
+  if(!w && !waist){ toast("Zadej aspoň váhu nebo pas."); return; }
+  await dbPut("bodymetrics", {id:uid(), date:todayISO(), weight:w, waist, bodyFat:fat});
+  ["body_weight","body_waist","body_fat"].forEach(id=>document.getElementById(id).value="");
+  renderStrava();
+  toast("Míry zapsány");
+}
+
+/* ================= NÁVYKY ================= */
+async function renderNavyky(){
+  const today = todayISO();
+  const all = await dbGetAll("substances");
+  const todays = all.filter(s=>s.date===today).sort((a,b)=> (b.time||"").localeCompare(a.time||""));
+  const el = document.getElementById("substanceTodayList");
+  el.innerHTML = todays.length===0 ? '<div class="empty">Zatím nic dnes.</div>' :
+    todays.map(s=>`<div class="list-item"><div><b>${labelSubType(s.type)}</b> · ${escapeHtml(s.amount||"")}
+      <div class="tag">${s.time||""} · craving ${s.craving}/10 · ${s.trigger||""} · ${s.outcome||""}</div></div>
+      <button class="close-x" onclick="deleteSubstance('${s.id}')">✕</button></div>`).join("");
+
+  const since = new Date(); since.setDate(since.getDate()-13);
+  const sinceStr = since.toISOString().slice(0,10);
+  const recent = all.filter(s=>s.date>=sinceStr);
+  const counts = {};
+  recent.forEach(s=>{ counts[s.type]=(counts[s.type]||0)+1; });
+  const types = ["alkohol","marihuana","vaping","cigareta"];
+  document.getElementById("substanceTrendBox").innerHTML = `<table><tr><th>Typ</th><th>Počet (14 dní)</th></tr>
+    ${types.map(t=>`<tr><td>${labelSubType(t)}</td><td>${counts[t]||0}</td></tr>`).join("")}</table>`;
+}
+function labelSubType(t){ return {alkohol:"🍺 Alkohol", marihuana:"🌿 Marihuana", vaping:"💨 Vaping", cigareta:"🚬 Cigareta"}[t]||t; }
+async function addSubstance(){
+  const obj = {
+    id:uid(), date: todayISO(),
+    type: document.getElementById("sub_type").value,
+    amount: document.getElementById("sub_amount").value,
+    time: document.getElementById("sub_time").value || new Date().toTimeString().slice(0,5),
+    craving: document.getElementById("sub_craving").value,
+    trigger: document.getElementById("sub_trigger").value,
+    expectation: document.getElementById("sub_expectation").value,
+    outcome: document.getElementById("sub_outcome").value,
+    planned: document.getElementById("sub_planned").checked,
+  };
+  await dbPut("substances", obj);
+  document.getElementById("sub_amount").value="";
+  document.getElementById("sub_expectation").value="";
+  document.getElementById("sub_craving").value=0;
+  document.getElementById("sub_cravingVal").textContent="0";
+  document.getElementById("sub_planned").checked=false;
+  renderNavyky();
+  toast("Zapsáno");
+}
+async function deleteSubstance(id){ await dbDelete("substances", id); renderNavyky(); }
+
+/* ================= DATA (Garmin import, export/import, reset) ================= */
+const GARMIN_FIELD_MAP = [
+  {key:"date", labels:["date","datum","day","calendardate"]},
+  {key:"sleepMin", labels:["sleep duration","doba spanku","sleep time","total sleep","asleep"]},
+  {key:"sleepScore", labels:["sleep score","skore spanku"]},
+  {key:"hrv", labels:["hrv","variabilita"]},
+  {key:"restingHR", labels:["resting heart rate","resting hr","klidovy tep","rhr"]},
+  {key:"avgStress", labels:["average stress","avg stress","stres"]},
+  {key:"bodyBatteryMorning", labels:["body battery (highest)","body battery max","body battery ráno"]},
+  {key:"bodyBatteryEvening", labels:["body battery (lowest)","body battery min","body battery večer"]},
+  {key:"steps", labels:["steps","kroky"]},
+  {key:"activeMin", labels:["active minutes","aktivni minuty","moderate activity","vigorous activity"]},
+  {key:"breathingRate", labels:["breathing rate","dechova frekvence"]},
+  {key:"activeKcal", labels:["active calories","aktivni kalorie","calories burned"]},
+  {key:"totalKcal", labels:["total calories","celkove kalorie","energy burned"]},
+];
+function normalizeHeader(h){ return h.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim(); }
+function guessField(header){
+  const n = normalizeHeader(header);
+  for(const f of GARMIN_FIELD_MAP){
+    if(f.labels.some(l=> n.includes(l))) return f.key;
+  }
+  return "ignore";
+}
+function parseCSV(text){
+  const rows = [];
+  let row=[], field="", inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQuotes=false; }
+      else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field=""; }
+      else if(c === '\n' || c === '\r'){
+        if(field!=="" || row.length>0){ row.push(field); rows.push(row); row=[]; field=""; }
+        if(c==='\r' && text[i+1]==='\n') i++;
+      } else field += c;
+    }
+  }
+  if(field!=="" || row.length>0){ row.push(field); rows.push(row); }
+  return rows.filter(r=> r.length>1 || (r.length===1 && r[0]!==""));
+}
+
+let garminParsed = null;
+function handleGarminFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const rows = parseCSV(e.target.result);
+    if(rows.length<2){ toast("Soubor vypadá prázdně."); return; }
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+    garminParsed = {headers, dataRows};
+    renderGarminMapping(headers);
+  };
+  reader.readAsText(file);
+}
+function renderGarminMapping(headers){
+  const options = ["ignore",...GARMIN_FIELD_MAP.map(f=>f.key)];
+  const optLabel = {ignore:"— Ignorovat —", date:"Datum", sleepMin:"Spánek (min)", sleepScore:"Skóre spánku",
+    hrv:"HRV", restingHR:"Klidový tep", avgStress:"Průměrný stres", bodyBatteryMorning:"Body Battery ráno",
+    bodyBatteryEvening:"Body Battery večer", steps:"Kroky", activeMin:"Aktivní minuty", breathingRate:"Dechová frekvence",
+    activeKcal:"Aktivní kalorie", totalKcal:"Celkové kalorie"};
+  let html = `<div class="mapping-row"><b>Sloupec v souboru</b><b>Přiřadit k poli</b></div>`;
+  headers.forEach((h,idx)=>{
+    const guess = guessField(h);
+    html += `<div class="mapping-row"><span>${escapeHtml(h)}</span>
+      <select id="gmap_${idx}">${options.map(o=>`<option value="${o}" ${o===guess?"selected":""}>${optLabel[o]}</option>`).join("")}</select></div>`;
+  });
+  html += `<button class="primary" style="width:100%;margin-top:10px;" onclick="importGarminData()">Importovat</button>`;
+  document.getElementById("garminMappingBox").innerHTML = html;
+}
+async function importGarminData(){
+  if(!garminParsed) return;
+  const {headers, dataRows} = garminParsed;
+  const mapping = headers.map((h,idx)=> document.getElementById("gmap_"+idx).value);
+  const dateIdx = mapping.indexOf("date");
+  if(dateIdx===-1){ toast("Musíš přiřadit sloupec Datum."); return; }
+  let count=0;
+  for(const row of dataRows){
+    let dateVal = row[dateIdx];
+    if(!dateVal) continue;
+    dateVal = normalizeDateStr(dateVal);
+    if(!dateVal) continue;
+    const existing = await getGarminForDate(dateVal);
+    const obj = existing ? {...existing} : {id:uid(), date:dateVal, source:"import"};
+    mapping.forEach((field, idx)=>{
+      if(field==="ignore" || field==="date") return;
+      const v = row[idx];
+      if(v!==undefined && v!=="") obj[field] = isNaN(parseFloat(v)) ? v : parseFloat(v);
+    });
+    await dbPut("garminDaily", obj);
+    count++;
+  }
+  toast(`Naimportováno ${count} dní z Garmin/Apple Health.`);
+  garminParsed = null;
+  document.getElementById("garminMappingBox").innerHTML="";
+  document.getElementById("garminFile").value="";
+  renderData();
+}
+function normalizeDateStr(s){
+  s = s.trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  const d = new Date(s);
+  if(!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+  return null;
+}
+
+async function renderData(){
+  const g = (await dbGetAll("garminDaily")).sort((a,b)=> a.date<b.date?1:-1).slice(0,10);
+  document.getElementById("garminDataList").innerHTML = g.length===0 ? '<div class="empty">Zatím nic naimportováno.</div>' :
+    g.map(d=>`<div class="list-item"><div>${d.date}</div><div class="tag">
+      ${d.sleepMin?("spánek "+(d.sleepMin/60).toFixed(1)+"h "):""}${d.restingHR?("tep "+d.restingHR+" "):""}${d.steps?("kroky "+d.steps):""}
+      </div></div>`).join("");
+}
+
+async function exportBackup(){
+  const data = {};
+  for(const s of STORES){ data[s] = await dbGetAll(s); }
+  data.exportedAt = new Date().toISOString();
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `ai-trener-zaloha-${todayISO()}.json`;
+  a.click();
+  toast("Záloha stažena");
+}
+function handleRestoreFile(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  if(!confirm("Obnovení ze zálohy přepíše shodné záznamy. Pokračovat?")) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      for(const s of STORES){
+        if(Array.isArray(data[s])){ for(const item of data[s]) await dbPut(s, item); }
+      }
+      toast("Záloha obnovena");
+      renderData();
+    }catch(err){ toast("Soubor se nepodařilo přečíst."); }
+  };
+  reader.readAsText(file);
+}
+async function resetAllData(){
+  if(!confirm("Opravdu smazat VŠECHNA data v appce? Tohle nelze vrátit zpět.")) return;
+  if(!confirm("Fakt jsi si jistý? Doporučujeme nejdřív stáhnout zálohu.")) return;
+  for(const s of STORES){ await dbClear(s); }
+  await seedExercisesIfEmpty();
+  toast("Vše smazáno");
+  renderData();
+}
+
+/* ================= INIT ================= */
+window.addEventListener("load", async ()=>{
+  await openDB();
+  await seedExercisesIfEmpty();
+  wireRanges();
+  switchView("dnes");
+  if("serviceWorker" in navigator){
+    try{ await navigator.serviceWorker.register("sw.js"); }catch(e){ /* ok i bez SW */ }
+  }
+});
+</script>
+</body>
+</html>
