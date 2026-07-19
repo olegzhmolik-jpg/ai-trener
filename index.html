@@ -75,6 +75,7 @@
   .exblock{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:var(--card2);}
   .suggest-box{background:#0d2733;border:1px solid #164a5c;color:#a9e6f5;border-radius:10px;
     padding:9px 11px;font-size:13px;margin-bottom:10px;}
+  .coach-box{background:#161c33;border:1px solid #2c3a63;border-radius:10px;padding:10px 12px;font-size:13.5px;margin:6px 0;}
   .list-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;
     border-bottom:1px solid var(--line);}
   .list-item:last-child{border-bottom:none;}
@@ -103,9 +104,65 @@
   .segmented button.on{background:var(--accent);color:#062028;}
   .mapping-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px;}
   code{background:var(--card2);padding:1px 5px;border-radius:5px;font-size:12px;}
+  .overlay{position:fixed;inset:0;background:rgba(6,10,20,.94);z-index:100;overflow-y:auto;padding:24px 14px 60px;}
+  .overlay-card{max-width:480px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;}
+  .overlay-card h2{margin-top:0;font-size:19px;}
+  .overlay-card h3{margin:18px 0 6px;font-size:13.5px;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;}
+  .daybtn{padding:14px 6px;font-size:12.5px;text-align:center;white-space:normal;line-height:1.3;}
 </style>
 </head>
 <body>
+
+<div class="overlay" id="onboardingOverlay" style="display:none;">
+  <div class="overlay-card">
+    <h2>Vítej — pár věcí na začátek</h2>
+    <p class="muted" style="font-size:13px;">Tohle appka potřebuje vědět jednou. Pak už jen zapisuješ tréninky a jednou za čas doplníš míry — o zbytek se postará appka sama.</p>
+
+    <h3>Základní údaje</h3>
+    <div class="grid2">
+      <div><label>Výška (cm)</label><input type="number" id="ob_height" value="193" /></div>
+      <div><label>Aktuální váha (kg)</label><input type="number" step="0.1" id="ob_weight" value="100" /></div>
+    </div>
+
+    <div id="ob_bodyBaselineBlock">
+      <div class="grid3">
+        <div><label>Pas (cm)</label><input type="number" step="0.5" id="ob_waist" /></div>
+        <div><label>Hrudník (cm)</label><input type="number" step="0.5" id="ob_chest" /></div>
+        <div><label>Paže (cm)</label><input type="number" step="0.5" id="ob_arm" /></div>
+      </div>
+      <div class="grid2">
+        <div><label>Stehno (cm)</label><input type="number" step="0.5" id="ob_thigh" /></div>
+        <div></div>
+      </div>
+      <p class="muted" style="font-size:12px;">Obvody měř ráno nalačno / před tréninkem, ne po napumpování — jinak trend zkreslíš. Appka na to bude i později hlídat interval.</p>
+    </div>
+
+    <h3>Zranění a omezení</h3>
+    <textarea id="ob_injuries" rows="3">Natržený ACL a boční vaz v koleni (historie) — sledovat bolest a stabilitu u dřepů/nohou, nezvyšovat zátěž při bolesti. V minulosti vyšší krevní tlak.</textarea>
+
+    <h3>Číslování tréninků</h3>
+    <label>Kolikátý byl tvůj poslední trénink v papírovém sešitě? Příští v appce naváže +1.</label>
+    <input type="number" id="ob_offset" placeholder="např. 157" />
+
+    <h3>Cíl</h3>
+    <textarea id="ob_goal" rows="2">Sledovat váhu a obvody končetin/trupu (měřeno před napumpováním) — vidět reálný směr, ne nafouknuté číslo po tréninku.</textarea>
+
+    <h3>Jak často se budeš měřit</h3>
+    <select id="ob_cadence">
+      <option value="7">Každý týden</option>
+      <option value="14" selected>Každé 2 týdny</option>
+      <option value="30">Jednou za měsíc</option>
+    </select>
+
+    <div id="ob_seedSection">
+      <h3>Startovní pracovní váhy</h3>
+      <p class="muted" style="font-size:12px;">Ať appka umí radit hned od prvního tréninku. Zadej poslední váhu / opakování / RIR, co si pamatuješ — klidně jen odhadem. Co nevyplníš, appka nastaví z prvního zápisu.</p>
+      <div id="ob_seedBlock"></div>
+    </div>
+
+    <button class="primary" style="width:100%;margin-top:16px;" onclick="completeOnboarding(document.getElementById('onboardingOverlay').dataset.editMode==='1')">Uložit a začít</button>
+  </div>
+</div>
 
 <header class="appbar">
   <h1>AI Trenér</h1>
@@ -116,6 +173,8 @@
 
   <!-- ============ DNES ============ -->
   <section class="view" id="view-dnes">
+    <div class="card" id="coachCard" style="display:none;"></div>
+
     <h2 class="section-title">Dnešní check-in</h2>
     <div class="card">
       <div class="row between"><h3 style="margin:0">Jak na tom dnes jsi?</h3><span class="tag" id="dnesDate"></span></div>
@@ -167,22 +226,20 @@
       <button class="ghost" onclick="switchView('strava')">🍽️ Zapsat jídlo</button>
       <button class="ghost" onclick="switchView('navyky')">🚬 Zapsat návyk</button>
     </div>
-
-    <h2 class="section-title" id="readinessInfoTitle">Co je „readiness“?</h2>
-    <div class="card" style="font-size:13px;color:var(--muted);line-height:1.5;">
-      Readiness = denní připravenost. Vyplníš pár rychlých otázek (spánek, energie, bolest, látky) a appka
-      z toho spočítá semafor: <b style="color:var(--green)">zelená</b> = jeď podle plánu, <b style="color:var(--yellow)">žlutá</b> = ponech váhy,
-      ale uber sérii a nehoň rekord, <b style="color:var(--red)">červená</b> = volno / lehký pohyb, případně řešit s odborníkem.
-      Je to hlavní bezpečnostní brzda systému.
-    </div>
   </section>
 
   <!-- ============ TRÉNINK ============ -->
   <section class="view" id="view-trenink">
     <div id="treninkHome">
       <h2 class="section-title">Trénink</h2>
+      <div class="card" id="lastFeedbackCard" style="display:none;"></div>
       <div class="card">
-        <button class="primary" style="width:100%" onclick="startNewWorkout()">+ Nový trénink</button>
+        <div class="muted" style="font-size:12.5px;margin-bottom:10px;" id="nextDayHint">Načítám doporučení…</div>
+        <div class="grid3" id="dayTypeButtons">
+          <button class="ghost daybtn" data-daytype="A" onclick="startNewWorkout('A')">Předek<br/>+ ruce</button>
+          <button class="ghost daybtn" data-daytype="B" onclick="startNewWorkout('B')">Nohy</button>
+          <button class="ghost daybtn" data-daytype="C" onclick="startNewWorkout('C')">Záda</button>
+        </div>
       </div>
       <h2 class="section-title">Historie</h2>
       <div class="card" id="workoutHistoryList"><div class="empty">Zatím žádné tréninky.</div></div>
@@ -196,8 +253,9 @@
           <h3 style="margin:0">Aktivní trénink</h3>
           <button class="small ghost" onclick="cancelWorkout()">Zrušit</button>
         </div>
+        <div class="tag" id="activeWorkoutMeta" style="margin-bottom:8px;"></div>
         <label>Název tréninku</label>
-        <input type="text" id="wo_name" placeholder="např. Full body A" />
+        <input type="text" id="wo_name" placeholder="např. Předek + ruce" />
         <div class="grid2">
           <div><label>Tělesná hmotnost (kg)</label><input type="number" step="0.1" id="wo_bodyweight" /></div>
           <div><label>Délka (min, doplň na konci)</label><input type="number" id="wo_duration" /></div>
@@ -207,7 +265,7 @@
       <div id="exerciseBlocks"></div>
 
       <div class="card">
-        <label>Přidat cvik</label>
+        <label>+ Přidat další cvik mimo plán (nepovinné)</label>
         <select id="addExerciseSelect"></select>
         <button class="ghost" style="width:100%;margin-top:8px;" onclick="addExerciseToWorkout()">+ Přidat cvik do tréninku</button>
       </div>
@@ -337,14 +395,23 @@
     </div>
     <div class="card" id="foodDbList"></div>
 
-    <h2 class="section-title">Tělo &amp; váha</h2>
+    <h2 class="section-title">Tělo &amp; obvody</h2>
     <div class="card">
+      <p class="muted" style="font-size:12px;">Měř ráno nalačno nebo před tréninkem — ne po napumpování, ať jsou čísla srovnatelná.</p>
       <div class="grid3">
         <div><label>Váha (kg)</label><input type="number" step="0.1" id="body_weight" /></div>
-        <div><label>Pas (cm)</label><input type="number" step="0.1" id="body_waist" /></div>
+        <div><label>Pas (cm)</label><input type="number" step="0.5" id="body_waist" /></div>
+        <div><label>Hrudník (cm)</label><input type="number" step="0.5" id="body_chest" /></div>
+      </div>
+      <div class="grid3">
+        <div><label>Paže (cm)</label><input type="number" step="0.5" id="body_arm" /></div>
+        <div><label>Stehno (cm)</label><input type="number" step="0.5" id="body_thigh" /></div>
         <div><label>% tuku (odhad)</label><input type="number" step="0.1" id="body_fat" /></div>
       </div>
+      <label>Kdy měřeno</label>
+      <select id="body_timing"><option value="rano_nalacno">Ráno nalačno</option><option value="pred_treninkem">Před tréninkem</option><option value="jindy">Jindy</option></select>
       <button class="ghost" style="width:100%;margin-top:8px;" onclick="addBodyMetric()">+ Zapsat míry</button>
+      <div id="bodyCompFeedbackBox" style="margin-top:10px;"></div>
     </div>
     <div class="card" id="bodyMetricsList"></div>
   </section>
@@ -393,6 +460,11 @@
 
   <!-- ============ DATA ============ -->
   <section class="view" id="view-data">
+    <h2 class="section-title">Profil</h2>
+    <div class="card">
+      <button class="ghost" style="width:100%;" onclick="openOnboarding(true)">✏️ Upravit profil / cíl / číslování</button>
+    </div>
+
     <h2 class="section-title">Import Garmin / Apple Health</h2>
     <div class="card">
       <p class="muted" style="font-size:12.5px;">
@@ -438,8 +510,8 @@
    ====================================================================== */
 
 const DB_NAME = "ai-trener-db";
-const DB_VERSION = 1;
-const STORES = ["exercises","workouts","sets","checkins","bodymetrics","foods","meals","macroTargets","substances","garminDaily"];
+const DB_VERSION = 2;
+const STORES = ["exercises","workouts","sets","checkins","bodymetrics","foods","meals","macroTargets","substances","garminDaily","profile"];
 let db;
 
 function openDB(){
@@ -447,16 +519,7 @@ function openDB(){
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e)=>{
       const d = e.target.result;
-      if(!d.objectStoreNames.contains("exercises")) d.createObjectStore("exercises",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("workouts")) d.createObjectStore("workouts",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("sets")) d.createObjectStore("sets",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("checkins")) d.createObjectStore("checkins",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("bodymetrics")) d.createObjectStore("bodymetrics",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("foods")) d.createObjectStore("foods",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("meals")) d.createObjectStore("meals",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("macroTargets")) d.createObjectStore("macroTargets",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("substances")) d.createObjectStore("substances",{keyPath:"id"});
-      if(!d.objectStoreNames.contains("garminDaily")) d.createObjectStore("garminDaily",{keyPath:"id"});
+      STORES.forEach(s=>{ if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:"id"}); });
     };
     req.onsuccess = (e)=>{ db = e.target.result; resolve(db); };
     req.onerror = (e)=> reject(e);
@@ -472,6 +535,10 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
 function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
 function epley1RM(weight,reps){ if(!weight||!reps) return 0; return Math.round(weight*(1+reps/30)*10)/10; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function daysBetween(d1,d2){ return Math.round((new Date(d2)-new Date(d1))/86400000); }
+function numDelta(a,b){ if(a===undefined||a===""||a===null||b===undefined||b===""||b===null) return null; return Math.round((Number(a)-Number(b))*10)/10; }
+function fmtDelta(d){ return (d>0?"+":"")+d; }
 
 /* ---------------- ROUTER ---------------- */
 function switchView(name){
@@ -486,28 +553,251 @@ function switchView(name){
   if(name==="data") renderData();
 }
 
-/* ---------------- SEED EXERCISES ---------------- */
+/* ================= EXERCISE LIBRARY (fixní split uživatele) ================= */
 const DEFAULT_EXERCISES = [
-  {name:"Bench press (osa)", pattern:"horizontální tlak", primary:"prsní svaly", secondary:"triceps, přední rameno", equipment:"osa, lavice, stojan", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:180, alts:"chest press, jednoruční bench, kliky", risks:"ostrá bolest ramene, nestabilita zápěstí, bolest na hrudi", favorite:true},
-  {name:"Dřep s osou (zádový)", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"vzpřimovače", equipment:"osa, stojan", repMin:6,repMax:10, step:2.5, rirMin:2,rirMax:3, rest:180, alts:"leg press, goblet dřep, hack dřep", risks:"nestabilita kolena, ostrá bolest kolena, ztráta rovnováhy", favorite:true},
-  {name:"Mrtvý tah (klasický)", pattern:"kyčelní dominance / hip hinge", primary:"vzpřimovače, hýždě, hamstringy", secondary:"trapézy, předloktí", equipment:"osa", repMin:5,repMax:8, step:2.5, rirMin:2,rirMax:3, rest:210, alts:"RDL, trap bar mrtvý tah, hip thrust", risks:"bolest dolních zad, kulatá záda pod zátěží", favorite:true},
-  {name:"Overhead press (osa)", pattern:"vertikální tlak", primary:"ramena", secondary:"triceps, horní hrudník", equipment:"osa", repMin:6,repMax:10, step:1.25, rirMin:1,rirMax:3, rest:150, alts:"jednoruční OHP, stroj na ramena", risks:"bolest ramene při zvednutí nad hlavu", favorite:true},
-  {name:"Přítah v předklonu (osa)", pattern:"horizontální tah", primary:"záda (široký sval zádový, rhomboidy)", secondary:"biceps, zadní rameno", equipment:"osa", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:150, alts:"přítah T, jednoruční veslování, kabelový přítah", risks:"bolest dolních zad při předklonu", favorite:true},
-  {name:"Shyby", pattern:"vertikální tah", primary:"široký sval zádový", secondary:"biceps", equipment:"hrazda", repMin:4,repMax:10, step:1.25, rirMin:0,rirMax:2, rest:150, alts:"lat pulldown, asistované shyby", risks:"bolest lokte, bolest ramene", favorite:false},
-  {name:"Bulharský dřep", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"stabilizátory", equipment:"činky, lavice", repMin:8,repMax:12, step:1.25, rirMin:1,rirMax:3, rest:120, alts:"výpady, leg press jednonož", risks:"bolest kolena, ztráta rovnováhy", favorite:false},
-  {name:"Leg press", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"", equipment:"stroj", repMin:8,repMax:15, step:5, rirMin:1,rirMax:3, rest:120, alts:"dřep, hack dřep", risks:"bolest kolena při plném rozsahu", favorite:false},
-  {name:"RDL (rumunský mrtvý tah)", pattern:"kyčelní dominance / hip hinge", primary:"hamstringy, hýždě", secondary:"vzpřimovače", equipment:"osa nebo činky", repMin:8,repMax:12, step:2.5, rirMin:1,rirMax:3, rest:120, alts:"good morning, hip thrust", risks:"bolest dolních zad", favorite:false},
-  {name:"Bicepsový zdvih", pattern:"izolace", primary:"biceps", secondary:"", equipment:"činky nebo osa", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"kabelový zdvih", risks:"bolest lokte", favorite:false},
-  {name:"Tricepsový kabelový tlak", pattern:"izolace", primary:"triceps", secondary:"", equipment:"kladka", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"kliky na bradlech, francouzský tlak", risks:"bolest lokte", favorite:false},
-  {name:"Hip thrust", pattern:"kyčelní dominance / hip hinge", primary:"hýždě", secondary:"hamstringy", equipment:"osa, lavice", repMin:8,repMax:12, step:5, rirMin:1,rirMax:3, rest:120, alts:"glute bridge", risks:"", favorite:false},
+  {id:"chest_bench", name:"Bench press (osa / stroj)", pattern:"horizontální tlak", primary:"prsní svaly", secondary:"triceps, přední rameno", equipment:"osa nebo chest press stroj", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:180, alts:"chest press, rozpažky na kladce", risks:"ostrá bolest ramene", favorite:true},
+  {id:"chest_machine", name:"Chest press (stroj)", pattern:"horizontální tlak", primary:"prsní svaly", secondary:"triceps", equipment:"stroj", repMin:8,repMax:12, step:5, rirMin:1,rirMax:3, rest:150, alts:"bench press, rozpažky na kladce", risks:"", favorite:false},
+  {id:"chest_fly_cable", name:"Rozpažky na kladce (motýlek)", pattern:"izolace", primary:"prsní svaly", secondary:"", equipment:"kladka", repMin:10,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"bench press, chest press", risks:"bolest ramene v krajní poloze", favorite:false},
+  {id:"dips_weighted", name:"Dipy na bradlech + zátěž", pattern:"horizontální/vertikální tlak", primary:"triceps, dolní hrudník", secondary:"přední rameno", equipment:"bradla, závěsný opasek", repMin:8,repMax:15, step:2.5, rirMin:1,rirMax:3, rest:150, alts:"kliky na bradlech bez zátěže", risks:"bolest ramene/loktu, bolest zápěstí při vyšší zátěži", favorite:true},
+  {id:"cable_biceps", name:"Biceps na kladce", pattern:"izolace", primary:"biceps", secondary:"", equipment:"kladka", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"biceps s činkou", risks:"bolest lokte", favorite:false},
+  {id:"cable_triceps", name:"Triceps na kladce", pattern:"izolace", primary:"triceps", secondary:"", equipment:"kladka", repMin:8,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:90, alts:"francouzský tlak", risks:"bolest lokte", favorite:false},
+  {id:"db_incline_shoulder", name:"Jednoručky (skloněná lavice 45° / Smith 45°)", pattern:"vertikální/horizontální tlak", primary:"ramena, horní hrudník", secondary:"triceps", equipment:"jednoručky, skloněná lavice nebo Smith", repMin:8,repMax:12, step:1.25, rirMin:1,rirMax:3, rest:120, alts:"OHP", risks:"bolest ramene", favorite:false},
+  {id:"leg_extension", name:"Předkopy (leg extension)", pattern:"izolace", primary:"kvadriceps", secondary:"", equipment:"stroj", repMin:12,repMax:15, step:5, rirMin:0,rirMax:2, rest:60, alts:"", risks:"bolest kolena", favorite:false},
+  {id:"leg_curl", name:"Zákopy (leg curl)", pattern:"izolace", primary:"hamstringy", secondary:"", equipment:"stroj", repMin:12,repMax:15, step:5, rirMin:0,rirMax:2, rest:60, alts:"", risks:"", favorite:false},
+  {id:"hip_abd_add", name:"Lítka (abduktory/addutory)", pattern:"izolace", primary:"hýždě, vnitřní stehna", secondary:"", equipment:"stroj", repMin:12,repMax:20, step:5, rirMin:0,rirMax:2, rest:60, alts:"", risks:"", favorite:false},
+  {id:"back_extension", name:"Záklony (hyperextenze)", pattern:"izolace", primary:"vzpřimovače, hýždě", secondary:"hamstringy", equipment:"lavice na záklony", repMin:10,repMax:15, step:1.25, rirMin:0,rirMax:2, rest:60, alts:"", risks:"bolest dolních zad", favorite:false},
+  {id:"back_squat", name:"Dřep s osou (zádový)", pattern:"dřep / kolenní dominance", primary:"kvadriceps, hýždě", secondary:"vzpřimovače", equipment:"osa, stojan", repMin:5,repMax:8, step:2.5, rirMin:2,rirMax:3, rest:210, alts:"leg press", risks:"historie ACL/postranní vaz — sleduj bolest a stabilitu kolena, nezvyšuj váhu při bolesti", favorite:true},
+  {id:"deadlift", name:"Mrtvý tah (klasický)", pattern:"kyčelní dominance / hip hinge", primary:"vzpřimovače, hýždě, hamstringy", secondary:"trapézy, předloktí", equipment:"osa", repMin:4,repMax:6, step:2.5, rirMin:2,rirMax:3, rest:240, alts:"RDL", risks:"bolest dolních zad, kulatá záda pod zátěží", favorite:true},
+  {id:"pullups", name:"Shyby (+ zátěž)", pattern:"vertikální tah", primary:"široký sval zádový", secondary:"biceps", equipment:"hrazda, případně závěsný opasek", repMin:4,repMax:10, step:1.25, rirMin:0,rirMax:2, rest:150, alts:"přítahy na T, přítahy na kladce", risks:"bolest ramene/lokte", favorite:true},
+  {id:"tbar_row", name:"Přítahy na T (trojice)", pattern:"horizontální tah", primary:"záda", secondary:"biceps", equipment:"T-tyč / trojice", repMin:6,repMax:10, step:2.5, rirMin:1,rirMax:3, rest:150, alts:"shyby, přítahy na kladce", risks:"bolest dolních zad při předklonu", favorite:false},
+  {id:"cable_row", name:"Přítahy k sobě na kladce (sedící)", pattern:"horizontální tah", primary:"záda", secondary:"biceps", equipment:"kladka", repMin:8,repMax:12, step:2.5, rirMin:1,rirMax:3, rest:120, alts:"shyby, přítahy na T", risks:"", favorite:false},
+  {id:"dragon_flag", name:"Dragon flag", pattern:"izolace (core)", primary:"přímý břišní sval", secondary:"", equipment:"lavice", repMin:5,repMax:10, step:0, rirMin:0,rirMax:2, rest:90, alts:"front lever, zvedání nohou na hrazdě, stroj na břicho", risks:"bolest dolních zad", favorite:false},
+  {id:"front_lever", name:"Front lever (progrese)", pattern:"izolace (core)", primary:"břicho, záda", secondary:"", equipment:"hrazda", repMin:5,repMax:10, step:0, rirMin:0,rirMax:2, rest:90, alts:"dragon flag, zvedání nohou na hrazdě, stroj na břicho", risks:"", favorite:false},
+  {id:"hanging_leg_raise", name:"Zvedání nohou na hrazdě", pattern:"izolace (core)", primary:"dolní břicho", secondary:"", equipment:"hrazda", repMin:8,repMax:15, step:0, rirMin:0,rirMax:2, rest:60, alts:"dragon flag, front lever, stroj na břicho", risks:"", favorite:false},
+  {id:"ab_machine", name:"Stroj na břicho", pattern:"izolace (core)", primary:"břicho", secondary:"", equipment:"stroj", repMin:10,repMax:15, step:5, rirMin:0,rirMax:2, rest:60, alts:"dragon flag, front lever, zvedání nohou na hrazdě", risks:"", favorite:false},
 ];
 
-async function seedExercisesIfEmpty(){
-  const existing = await dbGetAll("exercises");
-  if(existing.length>0) return;
-  for(const ex of DEFAULT_EXERCISES){
-    await dbPut("exercises", {id:uid(), ...ex, custom:false});
+const TEMPLATES = {
+  A: { label:"Předek těla + ruce", slots:[
+    {id:"chest", label:"Hlavní tlak na hrudník", options:["chest_bench","chest_machine","chest_fly_cable"]},
+    {id:"dips", label:"Dipy na bradlech + zátěž", options:["dips_weighted"]},
+    {id:"arms_cable", label:"Paže na kladce (biceps / triceps)", options:["cable_biceps","cable_triceps"]},
+    {id:"shoulders", label:"Ramena — jednoručky (nepovinné, jen občas)", options:["db_incline_shoulder"]},
+  ]},
+  B: { label:"Nohy", slots:[
+    {id:"legext", label:"Předkopy (rozcvičovací)", options:["leg_extension"]},
+    {id:"legcurl", label:"Zákopy (rozcvičovací)", options:["leg_curl"]},
+    {id:"hipabd", label:"Lítka (rozcvičovací)", options:["hip_abd_add"]},
+    {id:"backext", label:"Záklony (rozcvičovací)", options:["back_extension"]},
+    {id:"squat", label:"Dřep s osou", options:["back_squat"]},
+    {id:"deadlift", label:"Mrtvý tah", options:["deadlift"]},
+  ]},
+  C: { label:"Záda", slots:[
+    {id:"backpull", label:"Tah (záda)", options:["pullups","tbar_row","cable_row"]},
+  ]},
+};
+const CORE_SLOT = {id:"core", label:"Břicho (cíl: aspoň 3 série)", options:["dragon_flag","front_lever","hanging_leg_raise","ab_machine"]};
+const DAY_ORDER = ["A","B","C"];
+
+async function seedExercisesUpsert(){
+  for(const def of DEFAULT_EXERCISES){
+    const existing = await dbGet("exercises", def.id);
+    if(!existing) await dbPut("exercises", {...def, custom:false});
   }
+}
+
+/* ================= PROFIL / ONBOARDING ================= */
+const SEED_LIFTS = [
+  {id:"chest_bench", label:"Hrudník (bench / stroj)"},
+  {id:"back_squat", label:"Dřep"},
+  {id:"deadlift", label:"Mrtvý tah"},
+  {id:"dips_weighted", label:"Dipy + zátěž"},
+  {id:"pullups", label:"Shyby (+zátěž)"},
+];
+function buildSeedInputsHTML(){
+  return SEED_LIFTS.map(l=>`
+    <div class="card" style="padding:10px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${escapeHtml(l.label)}</div>
+      <div class="grid3">
+        <input type="number" step="0.5" placeholder="kg" id="ob_seed_${l.id}_w" />
+        <input type="number" placeholder="opak." id="ob_seed_${l.id}_r" />
+        <input type="number" placeholder="RIR" id="ob_seed_${l.id}_rir" />
+      </div>
+    </div>`).join("");
+}
+function openOnboarding(editMode){
+  const overlay = document.getElementById("onboardingOverlay");
+  overlay.dataset.editMode = editMode ? "1" : "0";
+  document.getElementById("ob_bodyBaselineBlock").style.display = editMode ? "none" : "block";
+  document.getElementById("ob_seedSection").style.display = editMode ? "none" : "block";
+  if(!editMode){
+    document.getElementById("ob_seedBlock").innerHTML = buildSeedInputsHTML();
+  }
+  if(editMode){
+    dbGet("profile","main").then(p=>{
+      if(!p) return;
+      document.getElementById("ob_height").value = p.height||"";
+      document.getElementById("ob_injuries").value = p.injuries||"";
+      document.getElementById("ob_offset").value = p.workoutOffset||"";
+      document.getElementById("ob_goal").value = p.goal||"";
+      document.getElementById("ob_cadence").value = p.checkinCadenceDays||14;
+    });
+  }
+  overlay.style.display = "block";
+}
+async function completeOnboarding(editMode){
+  const profile = {
+    id:"main",
+    height: document.getElementById("ob_height").value,
+    injuries: document.getElementById("ob_injuries").value,
+    workoutOffset: Number(document.getElementById("ob_offset").value)||0,
+    goal: document.getElementById("ob_goal").value,
+    checkinCadenceDays: Number(document.getElementById("ob_cadence").value)||14,
+    createdAt: Date.now(),
+  };
+  await dbPut("profile", profile);
+
+  if(!editMode){
+    const w = document.getElementById("ob_weight").value;
+    const waist = document.getElementById("ob_waist").value;
+    const chest = document.getElementById("ob_chest").value;
+    const arm = document.getElementById("ob_arm").value;
+    const thigh = document.getElementById("ob_thigh").value;
+    if(w || waist){
+      await dbPut("bodymetrics", {id:uid(), date:todayISO(), weight:w, waist, chest, arm, thigh, timing:"onboarding", note:"Výchozí hodnoty (onboarding)"});
+    }
+    const seedSets = [];
+    for(const l of SEED_LIFTS){
+      const wv = document.getElementById("ob_seed_"+l.id+"_w").value;
+      const rv = document.getElementById("ob_seed_"+l.id+"_r").value;
+      const rirv = document.getElementById("ob_seed_"+l.id+"_rir").value;
+      if(wv && rv) seedSets.push({exerciseId:l.id, weight:wv, reps:rv, rir:rirv||0});
+    }
+    if(seedSets.length>0){
+      const seedWorkoutId = uid();
+      await dbPut("workouts", {id:seedWorkoutId, date:todayISO(), createdAt:Date.now()-1000, isSeed:true, name:"Výchozí hodnoty (před appkou)"});
+      let i=1;
+      for(const s of seedSets){
+        await dbPut("sets", {id:uid(), workoutId:seedWorkoutId, exerciseId:s.exerciseId, setNumber:i++, type:"working", weight:s.weight, reps:s.reps, rir:s.rir, pain:0});
+      }
+    }
+  }
+
+  document.getElementById("onboardingOverlay").style.display = "none";
+  toast(editMode ? "Profil uložen" : "Profil uložen, appka je nastavená 💪");
+  switchView("dnes");
+}
+
+/* ================= KOUČ (rules-based expertní zpětná vazba) ================= */
+async function getLastWorkingSets(exerciseId){
+  const allWorkouts = (await dbGetAll("workouts")).sort((a,b)=> (b.date+String(b.createdAt||0)).localeCompare(a.date+String(a.createdAt||0)));
+  const allSets = await dbGetAll("sets");
+  for(const w of allWorkouts){
+    const s = allSets.filter(s=>s.workoutId===w.id && s.exerciseId===exerciseId && s.type==="working");
+    if(s.length>0) return s;
+  }
+  return [];
+}
+
+async function computeLiftTrend(exerciseId){
+  const exercises = await dbGetAll("exercises");
+  const ex = exercises.find(e=>e.id===exerciseId);
+  if(!ex) return null;
+  const workouts = (await dbGetAll("workouts"));
+  const sets = await dbGetAll("sets");
+  const points = [];
+  for(const w of workouts){
+    const s = sets.filter(s=>s.workoutId===w.id && s.exerciseId===exerciseId && s.type==="working");
+    if(s.length===0) continue;
+    const best = Math.max(...s.map(x=>epley1RM(Number(x.weight),Number(x.reps))));
+    const maxWeight = Math.max(...s.map(x=>Number(x.weight)));
+    points.push({date:w.date, createdAt:w.createdAt||0, e1rm:best, weight:maxWeight});
+  }
+  points.sort((a,b)=> (a.date+String(a.createdAt)).localeCompare(b.date+String(b.createdAt)));
+  const last = points.slice(-5);
+  if(last.length<2) return {name:ex.name, text:`${ex.name}: zatím míň než 2 tréninky v appce — na trend je brzo, sbírej dál.`, n:last.length};
+  const first = last[0], end = last[last.length-1];
+  const prev = last[last.length-2];
+  const stepDelta = Math.round((end.weight - prev.weight)*100)/100;
+  const deltaPct = ((end.e1rm-first.e1rm)/first.e1rm)*100;
+  let text;
+  if(stepDelta > 0){
+    text = `${ex.name}: síla roste — naposledy jsi přidal ${stepDelta} kg (${prev.weight}→${end.weight} kg). Pokračuj ve stejném tempu.`;
+  } else if(stepDelta < 0){
+    text = `${ex.name}: váha dolů oproti minule (${prev.weight}→${end.weight} kg) — pokud to nebyl záměrný deload, zkontroluj spánek, bolest a únavu.`;
+  } else if(deltaPct >= 3){
+    text = `${ex.name}: síla roste — odhad 1RM ${first.e1rm}→${end.e1rm} kg za posledních ${last.length} tréninky, i když poslední váha zůstala stejná (${end.weight} kg). Pokračuj.`;
+  } else if(deltaPct <= -3){
+    text = `${ex.name}: pokles — odhad 1RM ${first.e1rm}→${end.e1rm} kg za posledních ${last.length} tréninky. Zkontroluj spánek, bolest a techniku, případně zvaž deload týden.`;
+  } else {
+    text = `${ex.name}: stagnace kolem ${end.weight} kg posledních ${last.length} tréninky. Pokud se to opakuje i příště, zkus jinou variantu ze slotu, přidej sérii navíc, nebo dej deload týden.`;
+  }
+  return {name:ex.name, text, n:last.length};
+}
+
+async function computeConsistencyText(){
+  const workouts = (await dbGetAll("workouts")).filter(w=>!w.isSeed);
+  if(workouts.length===0) return "Zatím nemáš v appce žádný trénink — začni prvním záznamem v záložce Trénink.";
+  const since = new Date(); since.setDate(since.getDate()-20);
+  const sinceStr = since.toISOString().slice(0,10);
+  const recent = workouts.filter(w=>w.date>=sinceStr);
+  const weeks = 3, target = weeks*3;
+  let verdict;
+  if(recent.length>=target-1) verdict = "Držíš tempo 3×/týden.";
+  else if(recent.length>=target-4) verdict = "Mírně pozadu, ale v pohodě.";
+  else verdict = "Dost pozadu za plánem 3×/týden — zkus si tréninky napevno naplánovat do kalendáře.";
+  return `Za posledních ${weeks} týdny jsi odcvičil ${recent.length} tréninky z cílových ${target}. ${verdict}`;
+}
+
+async function computeBodyCompText(profile){
+  const bm = (await dbGetAll("bodymetrics")).sort((a,b)=> a.date<b.date?-1:1);
+  const cadence = (profile && profile.checkinCadenceDays) || 14;
+  if(bm.length===0) return `Zatím žádné tělesné míry — zapiš první měření v záložce Strava (ráno nalačno, před tréninkem, ne po napumpování).`;
+  const last = bm[bm.length-1];
+  const daysSinceLast = daysBetween(last.date, todayISO());
+  let reminder = "";
+  if(daysSinceLast >= cadence) reminder = ` Poslední měření bylo před ${daysSinceLast} dny — čas se znovu změřit (ráno nalačno, před tréninkem, ne po pumpu).`;
+  const cmp = [...bm].reverse().find(b=> b!==last && daysBetween(b.date,last.date)>=10 && daysBetween(b.date,last.date)<=45);
+  if(!cmp){
+    return `Poslední měření: ${last.date} (váha ${last.weight||"?"} kg, pas ${last.waist||"?"} cm). Zatím není s čím to srovnat na trend.` + reminder;
+  }
+  const dW = numDelta(last.weight, cmp.weight);
+  const dWaist = numDelta(last.waist, cmp.waist);
+  const dArm = numDelta(last.arm, cmp.arm);
+  const dThigh = numDelta(last.thigh, cmp.thigh);
+  let verdict;
+  if(dW!==null && dWaist!==null && dW<=0 && dWaist<0 && (dArm===null || dArm>=-0.3) && (dThigh===null || dThigh>=-0.3)){
+    verdict = "Vypadá to na rekompozici — váha/pas dolů, paže/stehno drží. Pokračuj v nastaveném režimu.";
+  } else if(dW!==null && dWaist!==null && dW>0 && dWaist>0 && dWaist > (dArm||0)){
+    verdict = "Přibýváš hlavně v pase — možná lehce nadbytečný kalorický příjem, zvaž mírně ubrat porce.";
+  } else if(dW!==null && dW<0 && dWaist!==null && dWaist<0 && ((dArm!==null && dArm<-0.5) || (dThigh!==null && dThigh<-0.5))){
+    verdict = "Hubneš, ale ubývají i obvody paží/stehen — deficit může být zbytečně tvrdý. Zvaž víc bílkovin nebo mírnější deficit.";
+  } else {
+    verdict = "Změny zatím v mezích šumu měření — pokračuj a vyhodnoť to zas za pár týdnů.";
+  }
+  const parts = [];
+  if(dW!==null) parts.push(`váha ${fmtDelta(dW)} kg`);
+  if(dWaist!==null) parts.push(`pas ${fmtDelta(dWaist)} cm`);
+  if(dArm!==null) parts.push(`paže ${fmtDelta(dArm)} cm`);
+  if(dThigh!==null) parts.push(`stehno ${fmtDelta(dThigh)} cm`);
+  return `Za posledních ${daysBetween(cmp.date,last.date)} dní (${cmp.date}→${last.date}): ${parts.join(", ")}. ${verdict}` + reminder;
+}
+
+async function renderCoachCard(){
+  const box = document.getElementById("coachCard");
+  const profile = await dbGet("profile","main");
+  if(!profile){ box.style.display="none"; return; }
+  const lines = [];
+  lines.push(await computeConsistencyText());
+  lines.push(await computeBodyCompText(profile));
+  const watch = ["back_squat","deadlift","chest_bench","pullups","dips_weighted"];
+  for(const exId of watch){
+    const r = await computeLiftTrend(exId);
+    if(r && r.n>=2) lines.push(r.text);
+  }
+  box.style.display = "block";
+  box.innerHTML = `<h3 style="margin:0 0 4px;">🧠 Zpětná vazba trenéra</h3>` +
+    lines.map(l=>`<div class="coach-box">${escapeHtml(l)}</div>`).join("");
 }
 
 /* ================= DNES / READINESS ================= */
@@ -557,7 +847,6 @@ async function computeSemafor(checkin){
   if(checkin.weedPrev==="ano"){ yellowCount++; reasons.push("Marihuana včera — možný horší spánek/regenerace."); }
   if(checkin.vaping==="vysoky"){ yellowCount++; reasons.push("Vysoký vaping — informativně, sleduj trend."); }
 
-  // Garmin augmentace
   try{
     const g = await getGarminForDate(checkin.date);
     if(g && g.restingHR){
@@ -591,6 +880,7 @@ async function computeSemafor(checkin){
 
 async function renderDnes(){
   document.getElementById("dnesDate").textContent = new Date().toLocaleDateString("cs-CZ");
+  await renderCoachCard();
   const today = todayISO();
   const existing = (await dbGetAll("checkins")).find(c=>c.date===today);
   if(existing){
@@ -641,7 +931,6 @@ function updateHeaderSemafor(level){
   dot.className = "dot " + level;
   span.textContent = level==="green"?"Zelená":level==="yellow"?"Žlutá":"Červená";
 }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
 async function saveCheckin(){
   const today = todayISO();
@@ -672,28 +961,57 @@ async function saveCheckin(){
 }
 
 /* ================= TRÉNINK ================= */
-let activeWorkout = null; // {id, name, date, bodyweight, exercises:[{exerciseId,name,sets:[...]}]}
+let activeWorkout = null;
+let lastWorkoutFeedback = [];
+
+async function getWorkoutNumber(){
+  const profile = await dbGet("profile","main");
+  const workouts = (await dbGetAll("workouts")).filter(w=>!w.isSeed);
+  return (profile && profile.workoutOffset ? Number(profile.workoutOffset) : 0) + workouts.length + 1;
+}
+async function getNextDayType(){
+  const workouts = (await dbGetAll("workouts")).filter(w=>!w.isSeed && w.dayType)
+    .sort((a,b)=> (b.date+String(b.createdAt||0)).localeCompare(a.date+String(a.createdAt||0)));
+  if(workouts.length===0) return "A";
+  const idx = DAY_ORDER.indexOf(workouts[0].dayType);
+  return DAY_ORDER[(idx+1)%DAY_ORDER.length];
+}
 
 async function renderTreninkHome(){
   document.getElementById("treninkHome").style.display="block";
   document.getElementById("treninkActive").style.display="none";
   document.getElementById("workoutDetailView").style.display="none";
 
-  const workouts = (await dbGetAll("workouts")).sort((a,b)=> a.date<b.date?1:-1);
+  const fb = document.getElementById("lastFeedbackCard");
+  if(lastWorkoutFeedback && lastWorkoutFeedback.length){
+    fb.style.display="block";
+    fb.innerHTML = `<h3 style="margin:0 0 4px;">🧠 Zpětná vazba k poslednímu tréninku</h3>` +
+      lastWorkoutFeedback.map(l=>`<div class="coach-box">${escapeHtml(l)}</div>`).join("");
+  } else fb.style.display="none";
+
+  const nextType = await getNextDayType();
+  const nextNum = await getWorkoutNumber();
+  document.getElementById("nextDayHint").textContent = `Doporučeno: ${TEMPLATES[nextType].label} (trénink č. ${nextNum})`;
+  document.querySelectorAll("#dayTypeButtons button").forEach(b=>{
+    b.className = "daybtn " + (b.dataset.daytype===nextType ? "primary" : "ghost");
+  });
+
+  const workouts = (await dbGetAll("workouts")).filter(w=>!w.isSeed).sort((a,b)=> (b.date+String(b.createdAt||0)).localeCompare(a.date+String(a.createdAt||0)));
   const listEl = document.getElementById("workoutHistoryList");
   if(workouts.length===0){ listEl.innerHTML = '<div class="empty">Zatím žádné tréninky.</div>'; }
   else{
-    listEl.innerHTML = workouts.slice(0,25).map(w=>`
-      <div class="list-item">
-        <div>
-          <div><b>${escapeHtml(w.name||"Trénink")}</b></div>
-          <div class="tag">${w.date} · ${w.duration?w.duration+" min":""} · RPE ${w.rpe||"—"}</div>
-        </div>
-        <button class="small ghost" onclick="openWorkoutDetail('${w.id}')">Detail</button>
-      </div>`).join("");
+    listEl.innerHTML = workouts.slice(0,25).map(w=>{
+      const label = (w.dayType && TEMPLATES[w.dayType]) ? TEMPLATES[w.dayType].label : (w.name||"Trénink");
+      const numLabel = w.workoutNumber ? `#${w.workoutNumber} · ` : "";
+      return `<div class="list-item">
+        <div><div><b>${numLabel}${escapeHtml(label)}</b></div>
+        <div class="tag">${w.date} · ${w.duration?w.duration+" min":""} · RPE ${w.rpe||"—"}</div></div>
+        <button class="small ghost" onclick="openWorkoutDetail('${w.id}')">Detail</button></div>`;
+    }).join("");
   }
 
-  const sets = await dbGetAll("sets");
+  const nonSeedIds = new Set(workouts.map(w=>w.id));
+  const sets = (await dbGetAll("sets")).filter(s=>nonSeedIds.has(s.workoutId));
   const statsEl = document.getElementById("statsBox");
   if(workouts.length===0){ statsEl.innerHTML = '<div class="empty">Zatím málo dat.</div>'; }
   else{
@@ -713,21 +1031,18 @@ async function renderTreninkHome(){
   }
 }
 
-async function startNewWorkout(){
-  const exercises = (await dbGetAll("exercises")).sort((a,b)=> (b.favorite?1:0)-(a.favorite?1:0) || a.name.localeCompare(b.name,'cs'));
-  const sel = document.getElementById("addExerciseSelect");
-  sel.innerHTML = exercises.map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
-  activeWorkout = { id:uid(), name:"", date: todayISO(), bodyweight:"", exercises:[] };
-  document.getElementById("wo_name").value="";
-  document.getElementById("wo_bodyweight").value="";
-  document.getElementById("wo_duration").value="";
-  document.getElementById("wo_rpe").value="";
-  document.getElementById("wo_note").value="";
-  document.getElementById("exerciseBlocks").innerHTML="";
-  document.getElementById("treninkHome").style.display="none";
-  document.getElementById("treninkActive").style.display="block";
+async function getDefaultExerciseForSlot(dayType, slot){
+  const workouts = (await dbGetAll("workouts")).filter(w=>!w.isSeed)
+    .sort((a,b)=> (b.date+String(b.createdAt||0)).localeCompare(a.date+String(a.createdAt||0)));
+  const sets = await dbGetAll("sets");
+  const relevant = slot.id==="core" ? workouts : workouts.filter(w=>w.dayType===dayType);
+  for(const w of relevant){
+    const s = sets.filter(s=>s.workoutId===w.id);
+    const match = s.find(s=> slot.options.includes(s.exerciseId));
+    if(match) return match.exerciseId;
+  }
+  return slot.options[0];
 }
-function cancelWorkout(){ activeWorkout=null; renderTreninkHome(); document.getElementById("treninkHome").style.display="block"; document.getElementById("treninkActive").style.display="none"; }
 
 async function suggestNext(exercise, lastSets){
   if(!lastSets || lastSets.length===0){
@@ -752,45 +1067,101 @@ async function suggestNext(exercise, lastSets){
   return {text:`Minule: ${perf} → zůstaň na ${lastWeight} kg, ještě nejsou všechny série na horní hranici s rezervou.`, weight:lastWeight};
 }
 
+async function renderSlotBlockHTML(entry){
+  const exercises = await dbGetAll("exercises");
+  const exercise = exercises.find(e=>e.id===entry.exerciseId);
+  let selectHtml = "";
+  if(entry.options && entry.options.length>1){
+    const optHtml = entry.options.map(oid=>{
+      const oex = exercises.find(e=>e.id===oid);
+      return `<option value="${oid}" ${oid===entry.exerciseId?"selected":""}>${oex?escapeHtml(oex.name):oid}</option>`;
+    }).join("");
+    selectHtml = `<select onchange="swapSlotExercise('${entry.blockId}', this.value)">${optHtml}</select>`;
+  }
+  if(!exercise){
+    return `<div class="row between"><h3 style="margin:0">${escapeHtml(entry.slotLabel||"Cvik")}</h3>
+      <button class="close-x" onclick="removeBlock('${entry.blockId}')">✕</button></div>
+      <div class="suggest-box">Cvik nenalezen v knihovně — vyber jiný.</div>${selectHtml}`;
+  }
+  const lastSets = await getLastWorkingSets(entry.exerciseId);
+  const suggestion = await suggestNext(exercise, lastSets);
+  entry.suggestedWeight = suggestion.weight;
+  entry.exercise = exercise;
+  return `
+    <div class="row between"><h3 style="margin:0">${escapeHtml(entry.slotLabel||exercise.name)}</h3>
+      <button class="close-x" onclick="removeBlock('${entry.blockId}')">✕</button></div>
+    ${selectHtml?`<div style="margin:6px 0 10px;">${selectHtml}</div>`:`<div class="tag" style="margin-bottom:6px;">${escapeHtml(exercise.name)}</div>`}
+    <div class="suggest-box">${escapeHtml(suggestion.text)}</div>
+    <div class="tag">Cíl: ${exercise.repMin}–${exercise.repMax} opak., RIR ${exercise.rirMin}–${exercise.rirMax}, pauza ${exercise.rest}s</div>
+    <div id="sets-${entry.blockId}" style="margin-top:10px;"></div>
+    <button class="ghost small" style="width:100%;margin-top:6px;" onclick="addSetRow('${entry.blockId}')">+ Přidat sérii</button>
+  `;
+}
+
+async function addAllSlotBlocks(dayType){
+  const slots = TEMPLATES[dayType].slots.concat([CORE_SLOT]);
+  const container = document.getElementById("exerciseBlocks");
+  for(const slot of slots){
+    const blockId = uid();
+    const defaultExId = await getDefaultExerciseForSlot(dayType, slot);
+    const entry = {blockId, slotId:slot.id, slotLabel:slot.label, options:slot.options, exerciseId:defaultExId, sets:[]};
+    activeWorkout.exercises.push(entry);
+    const div = document.createElement("div");
+    div.className = "exblock";
+    div.id = "block-"+blockId;
+    div.innerHTML = await renderSlotBlockHTML(entry);
+    container.appendChild(div);
+  }
+}
+async function swapSlotExercise(blockId, newExId){
+  const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
+  if(!entry) return;
+  entry.exerciseId = newExId;
+  entry.sets = [];
+  document.getElementById("block-"+blockId).innerHTML = await renderSlotBlockHTML(entry);
+}
+
+async function startNewWorkout(dayType){
+  lastWorkoutFeedback = [];
+  const exercises = (await dbGetAll("exercises")).sort((a,b)=> a.name.localeCompare(b.name,'cs'));
+  const sel = document.getElementById("addExerciseSelect");
+  sel.innerHTML = exercises.map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
+
+  const workoutNumber = await getWorkoutNumber();
+  activeWorkout = { id:uid(), date: todayISO(), createdAt: Date.now(), dayType, workoutNumber, exercises: [] };
+  document.getElementById("wo_name").value = TEMPLATES[dayType].label;
+  document.getElementById("wo_bodyweight").value="";
+  document.getElementById("wo_duration").value="";
+  document.getElementById("wo_rpe").value="";
+  document.getElementById("wo_note").value="";
+  document.getElementById("activeWorkoutMeta").textContent = `Trénink č. ${workoutNumber} · ${activeWorkout.date} · ${TEMPLATES[dayType].label}`;
+  document.getElementById("exerciseBlocks").innerHTML="";
+  document.getElementById("treninkHome").style.display="none";
+  document.getElementById("treninkActive").style.display="block";
+  await addAllSlotBlocks(dayType);
+}
+function cancelWorkout(){ activeWorkout=null; renderTreninkHome(); document.getElementById("treninkHome").style.display="block"; document.getElementById("treninkActive").style.display="none"; }
+
 async function addExerciseToWorkout(){
   const exId = document.getElementById("addExerciseSelect").value;
   const exercises = await dbGetAll("exercises");
   const exercise = exercises.find(e=>e.id===exId);
   if(!exercise) return;
-
-  const allWorkouts = (await dbGetAll("workouts")).sort((a,b)=> a.date<b.date?1:-1);
-  const allSets = await dbGetAll("sets");
-  let lastSets = [];
-  for(const w of allWorkouts){
-    const s = allSets.filter(s=>s.workoutId===w.id && s.exerciseId===exId && s.type==="working");
-    if(s.length>0){ lastSets = s; break; }
-  }
-  const suggestion = await suggestNext(exercise, lastSets);
-
   const blockId = uid();
-  const entry = {blockId, exerciseId:exId, name:exercise.name, exercise, sets:[], suggestedWeight: suggestion.weight};
+  const entry = {blockId, exerciseId:exId, slotLabel:null, options:null, sets:[]};
   activeWorkout.exercises.push(entry);
-  renderExerciseBlock(entry, suggestion);
-}
-
-function renderExerciseBlock(entry, suggestion){
   const container = document.getElementById("exerciseBlocks");
   const div = document.createElement("div");
   div.className = "exblock";
-  div.id = "block-"+entry.blockId;
-  div.innerHTML = `
-    <div class="row between"><h3 style="margin:0">${escapeHtml(entry.name)}</h3>
-      <button class="close-x" onclick="removeBlock('${entry.blockId}')">✕</button></div>
-    <div class="suggest-box">${escapeHtml(suggestion.text)}</div>
-    <div class="tag">Cíl: ${entry.exercise.repMin}–${entry.exercise.repMax} opak., RIR ${entry.exercise.rirMin}–${entry.exercise.rirMax}, pauza ${entry.exercise.rest}s</div>
-    <div id="sets-${entry.blockId}" style="margin-top:10px;"></div>
-    <button class="ghost small" style="width:100%;margin-top:6px;" onclick="addSetRow('${entry.blockId}')">+ Přidat sérii</button>
-  `;
+  div.id = "block-"+blockId;
+  div.innerHTML = await renderSlotBlockHTML(entry);
   container.appendChild(div);
 }
+
 function removeBlock(blockId){
   activeWorkout.exercises = activeWorkout.exercises.filter(e=>e.blockId!==blockId);
-  document.getElementById("block-"+blockId).remove();
+  const el = document.getElementById("block-"+blockId);
+  if(el) el.remove();
 }
 function addSetRow(blockId){
   const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
@@ -820,32 +1191,39 @@ function updateSet(blockId, setId, field, val){
 function removeSetRow(blockId, setId){
   const entry = activeWorkout.exercises.find(e=>e.blockId===blockId);
   entry.sets = entry.sets.filter(s=>s.id!==setId);
-  document.getElementById("setrow-"+setId).remove();
+  const el = document.getElementById("setrow-"+setId);
+  if(el) el.remove();
 }
 
 async function finishWorkout(){
-  if(!activeWorkout || activeWorkout.exercises.length===0){ toast("Přidej aspoň jeden cvik."); return; }
+  if(!activeWorkout || activeWorkout.exercises.every(e=>e.sets.length===0)){ toast("Přidej aspoň jednu sérii."); return; }
   const wo = {
-    id: activeWorkout.id, date: activeWorkout.date,
-    name: document.getElementById("wo_name").value || "Trénink",
+    id: activeWorkout.id, date: activeWorkout.date, createdAt: activeWorkout.createdAt,
+    dayType: activeWorkout.dayType, workoutNumber: activeWorkout.workoutNumber,
+    name: document.getElementById("wo_name").value || TEMPLATES[activeWorkout.dayType].label,
     bodyweight: document.getElementById("wo_bodyweight").value,
     duration: document.getElementById("wo_duration").value,
     rpe: document.getElementById("wo_rpe").value,
     note: document.getElementById("wo_note").value,
+    isSeed:false,
   };
   await dbPut("workouts", wo);
+  const loggedExerciseIds = new Set();
   for(const entry of activeWorkout.exercises){
     let i=1;
     for(const s of entry.sets){
       if(s.weight==="" && s.reps==="") continue;
-      await dbPut("sets", {
-        id:s.id, workoutId:wo.id, exerciseId:entry.exerciseId, setNumber:i++,
-        type:"working", weight:s.weight, reps:s.reps, rir:s.rir, pain:s.pain||0
-      });
+      await dbPut("sets", { id:s.id, workoutId:wo.id, exerciseId:entry.exerciseId, setNumber:i++, type:"working", weight:s.weight, reps:s.reps, rir:s.rir, pain:s.pain||0 });
+      loggedExerciseIds.add(entry.exerciseId);
     }
   }
+  lastWorkoutFeedback = [];
+  for(const exId of loggedExerciseIds){
+    const r = await computeLiftTrend(exId);
+    if(r) lastWorkoutFeedback.push(r.text);
+  }
   activeWorkout = null;
-  toast("Trénink uložen 💪");
+  toast("Trénink #"+wo.workoutNumber+" uložen 💪");
   renderTreninkHome();
 }
 
@@ -855,7 +1233,9 @@ async function openWorkoutDetail(workoutId){
   const exercises = await dbGetAll("exercises");
   const byEx = {};
   sets.forEach(s=>{ (byEx[s.exerciseId]=byEx[s.exerciseId]||[]).push(s); });
-  let html = `<div class="card"><h3>${escapeHtml(wo.name)}</h3>
+  const label = (wo.dayType && TEMPLATES[wo.dayType]) ? TEMPLATES[wo.dayType].label : (wo.name||"Trénink");
+  const numLabel = wo.workoutNumber ? `#${wo.workoutNumber} — ` : "";
+  let html = `<div class="card"><h3>${numLabel}${escapeHtml(label)}</h3>
     <div class="tag">${wo.date} · ${wo.duration||"?"} min · tělesná hmotnost ${wo.bodyweight||"?"} kg · RPE ${wo.rpe||"?"}</div>
     ${wo.note?`<p style="margin-top:8px;">${escapeHtml(wo.note)}</p>`:""}</div>`;
   Object.keys(byEx).forEach(exId=>{
@@ -999,7 +1379,7 @@ async function renderStrava(){
 
   const bm = (await dbGetAll("bodymetrics")).sort((a,b)=> a.date<b.date?1:-1).slice(0,10);
   document.getElementById("bodyMetricsList").innerHTML = bm.length===0 ? '<div class="empty">Zatím žádné míry.</div>' :
-    bm.map(b=>`<div class="list-item"><div>${b.date}</div><div class="tag">${b.weight||"?"} kg · pas ${b.waist||"?"} cm · tuk ${b.bodyFat||"?"}%</div></div>`).join("");
+    bm.map(b=>`<div class="list-item"><div>${b.date}</div><div class="tag">${b.weight||"?"} kg · pas ${b.waist||"?"} · hruď ${b.chest||"?"} · paže ${b.arm||"?"} · stehno ${b.thigh||"?"}</div></div>`).join("");
 }
 function onStravaDateChange(){ stravaSelectedDate = document.getElementById("stravaDateInput").value || todayISO(); renderStrava(); }
 
@@ -1063,11 +1443,17 @@ async function saveMacroTargets(){
 async function addBodyMetric(){
   const w = document.getElementById("body_weight").value;
   const waist = document.getElementById("body_waist").value;
+  const chest = document.getElementById("body_chest").value;
+  const arm = document.getElementById("body_arm").value;
+  const thigh = document.getElementById("body_thigh").value;
   const fat = document.getElementById("body_fat").value;
+  const timing = document.getElementById("body_timing").value;
   if(!w && !waist){ toast("Zadej aspoň váhu nebo pas."); return; }
-  await dbPut("bodymetrics", {id:uid(), date:todayISO(), weight:w, waist, bodyFat:fat});
-  ["body_weight","body_waist","body_fat"].forEach(id=>document.getElementById(id).value="");
+  await dbPut("bodymetrics", {id:uid(), date:todayISO(), weight:w, waist, chest, arm, thigh, bodyFat:fat, timing});
+  ["body_weight","body_waist","body_chest","body_arm","body_thigh","body_fat"].forEach(id=>document.getElementById(id).value="");
   renderStrava();
+  const profile = await dbGet("profile","main");
+  document.getElementById("bodyCompFeedbackBox").innerHTML = `<div class="coach-box">${escapeHtml(await computeBodyCompText(profile))}</div>`;
   toast("Míry zapsány");
 }
 
@@ -1269,16 +1655,21 @@ async function resetAllData(){
   if(!confirm("Opravdu smazat VŠECHNA data v appce? Tohle nelze vrátit zpět.")) return;
   if(!confirm("Fakt jsi si jistý? Doporučujeme nejdřív stáhnout zálohu.")) return;
   for(const s of STORES){ await dbClear(s); }
-  await seedExercisesIfEmpty();
+  await seedExercisesUpsert();
   toast("Vše smazáno");
   renderData();
+  openOnboarding(false);
 }
 
 /* ================= INIT ================= */
 window.addEventListener("load", async ()=>{
   await openDB();
-  await seedExercisesIfEmpty();
+  await seedExercisesUpsert();
   wireRanges();
+  const profile = await dbGet("profile","main");
+  if(!profile){
+    openOnboarding(false);
+  }
   switchView("dnes");
   if("serviceWorker" in navigator){
     try{ await navigator.serviceWorker.register("sw.js"); }catch(e){ /* ok i bez SW */ }
