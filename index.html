@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#0f172a; --bg2:#111c33; --card:#16213e; --card2:#1c2a4a;
@@ -483,6 +484,21 @@
       <button class="ghost" style="width:100%;" onclick="exportBackup()">⬇️ Stáhnout zálohu (JSON)</button>
       <label style="margin-top:12px;">Obnovit ze zálohy</label>
       <input type="file" id="restoreFile" accept=".json" onchange="handleRestoreFile(event)" />
+    </div>
+
+    <h2 class="section-title">☁️ Automatická záloha na Google Drive</h2>
+    <div class="card">
+      <p class="muted" style="font-size:12.5px;">
+        Vyžaduje jednorázové nastavení Google Cloud projektu (viz návod, který ti dám bokem) a Client ID vlož sem.
+        Appka pak sama ukládá zálohu na tvůj Disk — bez serveru appka nemůže zálohovat úplně na pozadí, takže se
+        jednou za čas (zhruba jednou denně / po vypršení přihlášení) budeš muset znovu rychle přihlásit k Google.
+      </p>
+      <label>Google OAuth Client ID</label>
+      <input type="text" id="gdrive_client_id" placeholder="xxxxxxxx.apps.googleusercontent.com" />
+      <button class="ghost" style="width:100%;margin-top:8px;" onclick="connectGDrive()">🔌 Připojit / obnovit přihlášení k Google Drive</button>
+      <div id="gdriveStatus" class="tag" style="margin-top:8px;">Zatím nepřipojeno.</div>
+      <label style="margin-top:10px;"><input type="checkbox" id="gdrive_auto_toggle" style="width:auto;display:inline-block;margin-right:6px;" onchange="localStorage.setItem('gdrive_auto', this.checked?'1':'0')" />Automaticky zálohovat cca jednou denně, když je appka otevřená a přihlášená</label>
+      <button class="primary" style="width:100%;margin-top:10px;" onclick="backupToGDrive(false)">☁️ Zálohovat teď na Drive</button>
     </div>
 
     <h2 class="section-title">Nebezpečná zóna</h2>
@@ -1634,18 +1650,128 @@ async function renderData(){
     g.map(d=>`<div class="list-item"><div>${d.date}</div><div class="tag">
       ${d.sleepMin?("spánek "+(d.sleepMin/60).toFixed(1)+"h "):""}${d.restingHR?("tep "+d.restingHR+" "):""}${d.steps?("kroky "+d.steps):""}
       </div></div>`).join("");
+  updateGDriveStatus();
 }
 
-async function exportBackup(){
+async function gatherAllData(){
   const data = {};
   for(const s of STORES){ data[s] = await dbGetAll(s); }
   data.exportedAt = new Date().toISOString();
+  return data;
+}
+async function exportBackup(){
+  const data = await gatherAllData();
   const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `ai-trener-zaloha-${todayISO()}.json`;
   a.click();
   toast("Záloha stažena");
+}
+
+/* ---------- Google Drive automatická záloha ---------- */
+let gdriveTokenClient = null;
+let gdriveAccessToken = null;
+let gdriveTokenExpiry = 0;
+const GDRIVE_FILE_NAME = "ai-trener-zaloha.json";
+
+function gdriveClientId(){ return localStorage.getItem("gdrive_client_id") || ""; }
+
+function initGDriveClient(){
+  const clientId = gdriveClientId();
+  if(!clientId || !window.google || !google.accounts || !google.accounts.oauth2) return false;
+  if(gdriveTokenClient) return true;
+  gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: "https://www.googleapis.com/auth/drive.file",
+    callback: onGDriveToken,
+  });
+  return true;
+}
+function onGDriveToken(resp){
+  if(!resp || resp.error){ updateGDriveStatus(); return; }
+  gdriveAccessToken = resp.access_token;
+  gdriveTokenExpiry = Date.now() + (Number(resp.expires_in||3300) * 1000);
+  updateGDriveStatus();
+  toast("Google Drive připojen");
+  backupToGDrive(true);
+}
+function connectGDrive(){
+  const input = document.getElementById("gdrive_client_id").value.trim();
+  if(input) localStorage.setItem("gdrive_client_id", input);
+  if(!gdriveClientId()){ toast("Vlož nejdřív Google Client ID."); return; }
+  if(!window.google || !google.accounts || !google.accounts.oauth2){
+    toast("Google knihovna se ještě nenačetla, zkus to za pár vteřin znovu.");
+    return;
+  }
+  gdriveTokenClient = null;
+  initGDriveClient();
+  gdriveTokenClient.requestAccessToken({prompt: "consent"});
+}
+function tryAutoReconnectGDrive(){
+  if(!gdriveClientId()) return;
+  if(!initGDriveClient()) return;
+  try{ gdriveTokenClient.requestAccessToken({prompt: ""}); }catch(e){ /* tichý pokus, nevadí když selže */ }
+}
+function updateGDriveStatus(){
+  const el = document.getElementById("gdriveStatus");
+  if(!el) return;
+  const lastBackup = localStorage.getItem("gdrive_last_backup");
+  const connected = gdriveAccessToken && Date.now() < gdriveTokenExpiry;
+  let text = connected ? "✅ Připojeno k Google Drive." : (gdriveClientId() ? "⚪ Nepřipojeno — klikni na Připojit." : "Zatím nenastaveno.");
+  if(lastBackup) text += ` Poslední záloha na Drive: ${new Date(Number(lastBackup)).toLocaleString("cs-CZ")}.`;
+  el.textContent = text;
+  const input = document.getElementById("gdrive_client_id");
+  if(input && !input.value) input.value = gdriveClientId();
+  const toggle = document.getElementById("gdrive_auto_toggle");
+  if(toggle) toggle.checked = localStorage.getItem("gdrive_auto") !== "0";
+}
+async function findGDriveBackupFileId(){
+  const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+    headers:{ Authorization: "Bearer " + gdriveAccessToken }
+  });
+  if(!res.ok) throw new Error("Drive list selhal");
+  const j = await res.json();
+  return (j.files && j.files[0]) ? j.files[0].id : null;
+}
+async function backupToGDrive(silent){
+  if(!gdriveAccessToken || Date.now() >= gdriveTokenExpiry){
+    if(!silent) toast("Nejdřív se přihlas k Google Drive.");
+    return false;
+  }
+  try{
+    const json = JSON.stringify(await gatherAllData());
+    let fileId = await findGDriveBackupFileId();
+    if(!fileId){
+      const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method:"POST",
+        headers:{ Authorization:"Bearer "+gdriveAccessToken, "Content-Type":"application/json" },
+        body: JSON.stringify({ name: GDRIVE_FILE_NAME })
+      });
+      if(!createRes.ok) throw new Error("Drive create selhal");
+      fileId = (await createRes.json()).id;
+    }
+    const upRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      method:"PATCH",
+      headers:{ Authorization:"Bearer "+gdriveAccessToken, "Content-Type":"application/json" },
+      body: json
+    });
+    if(!upRes.ok) throw new Error("Drive upload selhal");
+    localStorage.setItem("gdrive_last_backup", String(Date.now()));
+    updateGDriveStatus();
+    if(!silent) toast("Záloha nahrána na Google Drive ✅");
+    return true;
+  }catch(e){
+    if(!silent) toast("Zálohování na Drive selhalo, zkus to znovu.");
+    return false;
+  }
+}
+async function maybeAutoBackupGDrive(){
+  if(localStorage.getItem("gdrive_auto") === "0") return;
+  if(!gdriveAccessToken || Date.now() >= gdriveTokenExpiry) return;
+  const last = Number(localStorage.getItem("gdrive_last_backup") || 0);
+  if(Date.now() - last > 20*60*60*1000){ await backupToGDrive(true); }
 }
 function handleRestoreFile(ev){
   const file = ev.target.files[0];
@@ -1687,6 +1813,10 @@ window.addEventListener("load", async ()=>{
   if("serviceWorker" in navigator){
     try{ await navigator.serviceWorker.register("sw.js"); }catch(e){ /* ok i bez SW */ }
   }
+  setTimeout(()=>{
+    tryAutoReconnectGDrive();
+    setTimeout(()=>{ maybeAutoBackupGDrive(); }, 2000);
+  }, 1200);
 });
 </script>
 </body>
